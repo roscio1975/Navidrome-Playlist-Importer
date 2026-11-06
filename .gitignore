@@ -1,0 +1,5 @@
+/navidrome-importer
+/navidrome-importer.exe
+/dist/
+*.test
+.DS_Store
