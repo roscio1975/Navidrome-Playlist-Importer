@@ -111,9 +111,9 @@ func TestDedupeRows(t *testing.T) {
 func TestWriteReports(t *testing.T) {
 	dir := t.TempDir()
 	entries := []Entry{
-		{Row: Row{Track: "Gianna", Artist: "Rino Gaetano", Album: "Anni 70"}, Song: &Song{Title: "Gianna", Artist: "Rino Gaetano", Album: "La storia"}, Status: StatusExact},
-		{Row: Row{Track: "Assente", Artist: "Nessuno", Album: "Mai"}, Status: StatusNotFound},
-		{Row: Row{Track: "Saltato", Artist: "Nessuno", Album: "Mai"}, Status: StatusSkipped},
+		{RowNum: 1, Row: Row{Track: "Gianna", Artist: "Rino Gaetano", Album: "Anni 70"}, Song: &Song{Title: "Gianna", Artist: "Rino Gaetano", Album: "La storia"}, Status: StatusExact},
+		{RowNum: 2, Row: Row{Track: "Assente", Artist: "Nessuno", Album: "Mai"}, Status: StatusNotFound},
+		{RowNum: 3, Row: Row{Track: "Saltato", Artist: "Nessuno", Album: "Mai"}, Status: StatusSkipped},
 	}
 
 	all, miss, err := writeReports(dir, "Test/Playlist", entries, false)
@@ -131,7 +131,10 @@ func TestWriteReports(t *testing.T) {
 	if !strings.HasPrefix(string(raw), "\ufeff") {
 		t.Error("missing UTF-8 BOM")
 	}
-	if !strings.Contains(string(raw), "Gianna;Rino Gaetano;Anni 70;EXACT;Gianna;Rino Gaetano;La storia") {
+	if !strings.Contains(string(raw), "Row;CSV Title;CSV Artist;CSV Album;Status") {
+		t.Error("missing header row")
+	}
+	if !strings.Contains(string(raw), "1;Gianna;Rino Gaetano;Anni 70;EXACT;Gianna;Rino Gaetano;La storia") {
 		t.Error("missing match row or wrong format")
 	}
 	if !strings.Contains(string(raw), "\r\n") {
@@ -148,5 +151,8 @@ func TestWriteReports(t *testing.T) {
 	}
 	if strings.Contains(text, "Gianna") {
 		t.Error("the not-found file must not contain matched tracks")
+	}
+	if !strings.Contains(text, "2;Assente;Nessuno;Mai;NOT FOUND") {
+		t.Errorf("not-found file is missing the row number or the status: %s", text)
 	}
 }

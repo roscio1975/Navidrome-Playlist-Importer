@@ -63,9 +63,9 @@ func formatSong(s *Song) string {
 
 func (u *UI) printOptions(opts []Option) {
 	for i, o := range opts {
-		fmt.Fprintf(u.out, "  %d) %s", i+1, formatSong(&o.Song))
+		fmt.Fprintf(u.out, "    %s  %s", dim(fmt.Sprintf("%2d", i+1)), formatSong(&o.Song))
 		if o.HasScore {
-			fmt.Fprintf(u.out, "  (%.2f)", o.Score)
+			fmt.Fprintf(u.out, "  %s", dim(fmt.Sprintf("%.2f", o.Score)))
 		}
 		fmt.Fprintln(u.out)
 	}
@@ -82,17 +82,25 @@ func optionsFromCandidates(songs []Song, cands []Candidate) []Option {
 	return opts
 }
 
-// AskSong shows the candidates and returns the chosen track.
+// AskSong shows the candidates for a CSV row and returns the chosen track.
 // skip=true means the user chose to skip this row.
-func (u *UI) AskSong(header string, opts []Option) (*Song, bool, error) {
-	fmt.Fprintln(u.out)
-	fmt.Fprintln(u.out, header)
-	if len(opts) == 0 {
-		fmt.Fprintln(u.out, "  No candidates found in the library.")
+func (u *UI) AskSong(row Row, n, total int, ambiguous bool, opts []Option) (*Song, bool, error) {
+	const indent = "             "
+
+	if n > 1 {
+		fmt.Fprintln(u.out)
+	}
+	fmt.Fprintf(u.out, "  %s  %s\n", progressTag(n, total), bold(describeRow(row)))
+	if ambiguous {
+		fmt.Fprintf(u.out, "%s%s %s\n", indent, yellow("needs a decision"),
+			dim(fmt.Sprintf("· %d candidates", len(opts))))
 	} else {
+		fmt.Fprintf(u.out, "%s%s %s\n", indent, red("not found"), dim("· no candidates in the library"))
+	}
+	if len(opts) > 0 {
 		u.printOptions(opts)
 	}
-	fmt.Fprintln(u.out, "  s = skip   c <text> = search   i <id> = enter ID   q = quit")
+	fmt.Fprintf(u.out, "%s%s\n", indent, dim("s = skip   c <text> = search   i <id> = enter ID   q = quit"))
 
 	for {
 		if len(opts) > 0 {
@@ -143,18 +151,18 @@ func (u *UI) AskSong(header string, opts []Option) (*Song, bool, error) {
 			}
 			found, err := u.client.Search(query)
 			if err != nil {
-				fmt.Fprintf(u.out, "  Search error: %v\n", err)
+				fmt.Fprintf(u.out, "    %s\n", red("Search error: "+err.Error()))
 				continue
 			}
 			if len(found) == 0 {
-				fmt.Fprintln(u.out, "  No results.")
+				fmt.Fprintf(u.out, "    %s\n", dim("No results."))
 				continue
 			}
 			opts = make([]Option, 0, len(found))
 			for _, s := range found {
 				opts = append(opts, Option{Song: s})
 			}
-			fmt.Fprintln(u.out, "  Search results:")
+			fmt.Fprintf(u.out, "\n    %s\n", cyan("Search results"))
 			u.printOptions(opts)
 
 		case low == "i" || strings.HasPrefix(low, "i "):
@@ -171,7 +179,7 @@ func (u *UI) AskSong(header string, opts []Option) (*Song, bool, error) {
 			}
 			s, err := u.client.GetSong(id)
 			if err != nil {
-				fmt.Fprintf(u.out, "  Invalid ID: %v\n", err)
+				fmt.Fprintf(u.out, "    %s\n", red("Invalid ID: "+err.Error()))
 				continue
 			}
 			return s, false, nil
@@ -182,7 +190,7 @@ func (u *UI) AskSong(header string, opts []Option) (*Song, bool, error) {
 				s := opts[n-1].Song
 				return &s, false, nil
 			}
-			fmt.Fprintln(u.out, "  Invalid choice.")
+			fmt.Fprintf(u.out, "    %s\n", red("Invalid choice."))
 		}
 	}
 }
@@ -201,12 +209,13 @@ const (
 // on different albums.
 func (u *UI) AskDuplicate(first, second Entry) (DupChoice, error) {
 	fmt.Fprintln(u.out)
-	fmt.Fprintf(u.out, "Duplicate: «%s» — %s\n", first.Song.Title, first.Song.Artist)
-	fmt.Fprintf(u.out, "  1) %s\n     already in the playlist (CSV row: «%s» — %s [ %s ])\n",
-		formatSong(first.Song), first.Row.Track, first.Row.Artist, first.Row.Album)
-	fmt.Fprintf(u.out, "  2) %s\n     new (CSV row: «%s» — %s [ %s ])\n",
-		formatSong(second.Song), second.Row.Track, second.Row.Artist, second.Row.Album)
-	fmt.Fprintln(u.out, "  Choice: 1 = keep 1, 2 = keep 2, t = keep both, s = skip both, q = quit")
+	fmt.Fprintf(u.out, "  %s  %s\n", yellow("duplicate"),
+		bold(fmt.Sprintf("«%s» — %s", first.Song.Title, first.Song.Artist)))
+	fmt.Fprintf(u.out, "    %s  %s\n", dim("1"), formatSong(first.Song))
+	fmt.Fprintf(u.out, "       %s\n", dim("already in the playlist · CSV row "+describeRow(first.Row)))
+	fmt.Fprintf(u.out, "    %s  %s\n", dim("2"), formatSong(second.Song))
+	fmt.Fprintf(u.out, "       %s\n", dim("new · CSV row "+describeRow(second.Row)))
+	fmt.Fprintf(u.out, "    %s\n", dim("1 = keep 1   2 = keep 2   t = keep both   s = skip both   q = quit"))
 
 	for {
 		line, err := u.readLine("Choice [1]: ")
@@ -238,11 +247,12 @@ type ExistingAction struct {
 
 func (u *UI) AskExistingPlaylist(name string, count int) (ExistingAction, error) {
 	fmt.Fprintln(u.out)
-	fmt.Fprintf(u.out, "A playlist named «%s» already exists (%s).\n", name, tracks(count))
-	fmt.Fprintln(u.out, "  a = update (replaces the tracks)")
-	fmt.Fprintln(u.out, "  d = duplicate (creates a new playlist «name (2)»)")
-	fmt.Fprintln(u.out, "  r = rename the new playlist")
-	fmt.Fprintln(u.out, "  q = quit without changes")
+	fmt.Fprintf(u.out, "  %s  %s%s\n", yellow("playlist exists"),
+		bold("«"+name+"»"), dim(" · "+tracks(count)))
+	fmt.Fprintf(u.out, "    %s  %s\n", dim("a"), "update (replaces the tracks)")
+	fmt.Fprintf(u.out, "    %s  %s\n", dim("d"), "duplicate (creates a new playlist «name (2)»)")
+	fmt.Fprintf(u.out, "    %s  %s\n", dim("r"), "rename the new playlist")
+	fmt.Fprintf(u.out, "    %s  %s\n", dim("q"), "quit without changes")
 
 	for {
 		line, err := u.readLine("Choice [a]: ")

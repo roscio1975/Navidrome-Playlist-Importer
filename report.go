@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -23,14 +24,19 @@ const (
 
 // Entry is the final outcome for one CSV row.
 type Entry struct {
+	RowNum int // 1-based data row in the CSV
 	Row    Row
 	Song   *Song
 	Status string
 }
 
 var reportHeader = []string{
-	"CSV Track", "CSV Artist", "CSV Album", "Status",
-	"Navidrome Track", "Navidrome Artist", "Navidrome Album",
+	"Row", "CSV Title", "CSV Artist", "CSV Album", "Status",
+	"Navidrome Title", "Navidrome Artist", "Navidrome Album",
+}
+
+var missingHeader = []string{
+	"Row", "CSV Title", "CSV Artist", "CSV Album", "Status",
 }
 
 func sanitizeName(s string) string {
@@ -89,7 +95,8 @@ func writeReports(dir, playlistName string, entries []Entry, preview bool) (stri
 	all := make([][]string, 0, len(entries))
 	missing := make([][]string, 0)
 	for _, e := range entries {
-		row := []string{e.Row.Track, e.Row.Artist, e.Row.Album, e.Status}
+		rowNum := strconv.Itoa(e.RowNum)
+		row := []string{rowNum, e.Row.Track, e.Row.Artist, e.Row.Album, e.Status}
 		if e.Song != nil {
 			row = append(row, e.Song.Title, e.Song.Artist, e.Song.Album)
 		} else {
@@ -99,14 +106,14 @@ func writeReports(dir, playlistName string, entries []Entry, preview bool) (stri
 
 		switch e.Status {
 		case StatusNotFound, StatusSkipped, StatusAmbiguousSkip:
-			missing = append(missing, []string{e.Row.Track, e.Row.Artist, e.Row.Album})
+			missing = append(missing, []string{rowNum, e.Row.Track, e.Row.Artist, e.Row.Album, e.Status})
 		}
 	}
 
 	if err := write(allPath, reportHeader, all); err != nil {
 		return "", "", fmt.Errorf("writing %s: %w", allPath, err)
 	}
-	if err := write(missPath, []string{"Track", "Artist", "Album"}, missing); err != nil {
+	if err := write(missPath, missingHeader, missing); err != nil {
 		return "", "", fmt.Errorf("writing %s: %w", missPath, err)
 	}
 	return allPath, missPath, nil

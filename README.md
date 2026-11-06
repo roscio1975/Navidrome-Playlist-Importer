@@ -120,13 +120,27 @@ Every row goes through three levels:
 3. **Needs a decision** — there are several plausible candidates, or none. The program shows the
    options and you choose.
 
+The run starts with a compact summary of the connection, the library and the CSV:
+
+```
+  Navidrome  http://192.168.1.10:4533
+  User       mario
+  Library    9,284 tracks · cached on 2026-11-06 08:07 · use --refresh to update
+  CSV        100 rows · delimiter ";"
+  Tracks     100 unique · 65 exact · 8 automatic · 2 to decide · 25 not found
+
+      1/100  ✓ EXACT         Un'emozione da poco — Anna Oxa [ Best of Anna Oxa ]
+      2/100  ✗ NOT FOUND     «Sei bellissima» — Loredana Bertè [ Sei bellissima ]
+```
+
 Ambiguous cases are displayed like this:
 
 ```
-[1/100] «Piazza Grande» — Lucio Dalla [ Il meglio della musica italiana anni '70 ]  → needs a decision
-  1) Piazza grande — Dalla - De Gregori [ Banana Republic ]
-  2) Piazza Grande): Piazza Grande — Lucio Dalla [ Gli anni settanta - CD1 ]  (0.84)
-  s = skip   c <text> = search   i <id> = enter ID   q = quit
+       3/100  «Piazza Grande» — Lucio Dalla [ Il meglio della musica italiana anni '70 ]
+              needs a decision · 2 candidates
+     1  Piazza grande — Dalla - De Gregori [ Banana Republic ]
+     2  Piazza Grande): Piazza Grande — Lucio Dalla [ Gli anni settanta - CD1 ]  0.84
+              s = skip   c <text> = search   i <id> = enter ID   q = quit
 Choice [1]:
 ```
 
@@ -141,18 +155,24 @@ What you can type:
 | `i <id>` | enter the Subsonic ID of a track directly |
 | `q` | stop without changing anything |
 
+### Colors
+
+Colors and status symbols are enabled only when the output is a terminal. They are disabled
+automatically when `NO_COLOR` is set or `TERM=dumb`; use `--no-color` to force plain output (for
+example when redirecting to a file).
+
 ### Duplicates
 
 If the same title + artist appears more than once in the CSV on **different albums**, the program
 asks every time which version to keep:
 
 ```
-Duplicate: «La Primavera» — Manu Chao
-  1) La Primavera — Manu Chao [ Baionarena ]
-     already in the playlist (CSV row: «La Primavera» — Manu Chao [ Baionarena ])
-  2) La Primavera — Manu CHAO [ Próxima Estación... Esperanza ]
-     new (CSV row: «La Primavera» — Manu Chao [ Próxima Estación... Esperanza ])
-  Choice: 1 = keep 1, 2 = keep 2, t = keep both, s = skip both, q = quit
+  duplicate  «La Primavera» — Manu Chao
+    1  La Primavera — Manu Chao [ Baionarena ]
+       already in the playlist · CSV row «La Primavera» — Manu Chao [ Baionarena ]
+    2  La Primavera — Manu CHAO [ Próxima Estación... Esperanza ]
+       new · CSV row «La Primavera» — Manu Chao [ Próxima Estación... Esperanza ]
+    1 = keep 1   2 = keep 2   t = keep both   s = skip both   q = quit
 ```
 
 ### Existing playlist
@@ -160,14 +180,33 @@ Duplicate: «La Primavera» — Manu Chao
 If a playlist with the same name already exists:
 
 ```
-a = update (replaces the tracks)
-d = duplicate (creates a new playlist «name (2)»)
-r = rename the new playlist
-q = quit without changes
+  playlist exists  «Italian Beat» · 75 tracks
+    a  update (replaces the tracks)
+    d  duplicate (creates a new playlist «name (2)»)
+    r  rename the new playlist
+    q  quit without changes
 ```
 
 The default playlist name is the CSV file name without its extension; it can be changed with
 `--name`.
+
+### Final summary
+
+```
+Summary
+  ────────────────────────
+  ✓ EXACT            65
+  ≈ AUTOMATIC         8
+  ? AMBIGUOUS         2
+  ✗ NOT FOUND        25
+
+  In playlist  75 tracks
+  Mode         dry-run · nothing was changed in Navidrome
+
+  Reports
+    /Users/mario/Music/Playlist Italian Beat - preview - matches.csv
+    /Users/mario/Music/Playlist Italian Beat - preview - not found.csv
+```
 
 ---
 
@@ -189,6 +228,7 @@ navidrome-importer [options] <file.csv>
 | `--dry-run` | show what would be done without creating/updating the playlist |
 | `--yes` | non-interactive: use automatic choices (see below) |
 | `--report-dir <dir>` | report directory (default: the CSV directory) |
+| `--no-color` | disable colors in the terminal output |
 | `--version` | print the version |
 | `-h`, `--help` | show the help |
 
@@ -221,6 +261,19 @@ Next to the CSV (or in the directory given with `--report-dir`) the program crea
   Navidrome track;
 - `Playlist <Name> - not found.csv` — only tracks that were not matched or were skipped.
 
+Both files start with a 1-based `Row` column, so every line can be traced back to the input CSV.
+The full header of the matches file is:
+
+```
+Row;CSV Title;CSV Artist;CSV Album;Status;Navidrome Title;Navidrome Artist;Navidrome Album
+```
+
+and the not-found file is:
+
+```
+Row;CSV Title;CSV Artist;CSV Album;Status
+```
+
 The files use `;` as separator, a UTF-8 BOM and CRLF line endings, so Excel opens them correctly.
 
 With `--dry-run` the names become `Playlist <Name> - preview - ...` to avoid overwriting the
@@ -233,6 +286,7 @@ reports of a real import.
 | `EXACT` | title and artist match |
 | `AUTOMATIC` | automatic match with high confidence |
 | `AMBIGUOUS (first choice)` | automatic choice of the first candidate (only with `--yes`) |
+| `AMBIGUOUS (skipped)` | ambiguous row skipped without a choice (non-interactive) |
 | `MANUAL CHOICE` | manual choice (candidate, search or ID) |
 | `NOT FOUND` | no candidate |
 | `SKIPPED (your choice)` | skipped during review |

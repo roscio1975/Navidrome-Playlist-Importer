@@ -46,9 +46,12 @@ func run() error {
 		reportFlag  = flag.String("report-dir", "", "report directory (default: the CSV directory)")
 		setupFlag   = flag.Bool("setup", false, "run the guided setup and save the configuration file")
 		versionFlag = flag.Bool("version", false, "print the version")
+		noColorFlag = flag.Bool("no-color", false, "disable colors in the terminal output")
 	)
 	flag.Usage = usage
 	flag.Parse()
+
+	useColor = colorEnabled(*noColorFlag)
 
 	if *versionFlag {
 		fmt.Printf("navidrome-importer %s\n", version)
@@ -94,7 +97,9 @@ func run() error {
 		return errors.New("non-interactive input: use --yes to run without prompts")
 	}
 
-	fmt.Printf("Navidrome: %s (user %s)\n", client.Base, client.User)
+	fmt.Println()
+	field("Navidrome", client.Base)
+	field("User", client.User)
 	if err := client.Ping(); err != nil {
 		return fmt.Errorf("cannot connect to Navidrome: %w", err)
 	}
@@ -108,7 +113,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("CSV: %d rows, delimiter %q\n", len(rows), string(delim))
+	field("CSV", fmt.Sprintf("%s · delimiter %q", plural(len(rows), "row", "rows"), string(delim)))
 
 	unique, mapping := dedupeRows(rows)
 	matcher := NewMatcher(songs)
@@ -124,8 +129,9 @@ func run() error {
 	for _, r := range uniqueResults {
 		counts[r.Class]++
 	}
-	fmt.Printf("Unique tracks: %d — exact: %d, automatic: %d, to decide: %d, not found: %d\n",
-		len(unique), counts["exact"], counts["auto"], counts["ambiguous"], counts["none"])
+	field("Tracks", fmt.Sprintf("%s unique · %d exact · %d automatic · %d to decide · %d not found",
+		num(len(unique)), counts["exact"], counts["auto"], counts["ambiguous"], counts["none"]))
+	fmt.Println()
 
 	playlistName := *nameFlag
 	if playlistName == "" {
@@ -224,13 +230,13 @@ func getLibrary(client *Client, refresh bool) ([]Song, error) {
 
 	if !refresh && cachePath != "" {
 		if songs, fetchedAt, ok := loadLibraryCache(cachePath); ok {
-			fmt.Printf("Library: %s (cached on %s, use --refresh to update)\n",
-				tracks(len(songs)), fetchedAt.Format("2006-01-02 15:04"))
+			field("Library", fmt.Sprintf("%s · cached on %s · use --refresh to update",
+				tracks(len(songs)), fetchedAt.Format("2006-01-02 15:04")))
 			return songs, nil
 		}
 	}
 
-	fmt.Println("Library: downloading the full list from Navidrome (this may take a few minutes)...")
+	field("Library", "downloading the full list from Navidrome (this may take a few minutes)...")
 	songs, err := fetchLibrary(client)
 	if err != nil {
 		return nil, err
@@ -240,7 +246,7 @@ func getLibrary(client *Client, refresh bool) ([]Song, error) {
 			fmt.Fprintf(os.Stderr, "Warning: cannot save the cache: %v\n", err)
 		}
 	}
-	fmt.Printf("Library: %s indexed\n", tracks(len(songs)))
+	field("Library", tracks(len(songs))+" indexed")
 	return songs, nil
 }
 
@@ -277,22 +283,18 @@ func resolveAll(ui *UI, songs []Song, results []MatchResult, nonInteractive bool
 	solved := map[string]int{}
 
 	for i, r := range results {
-		header := fmt.Sprintf("[%d/%d] «%s» — %s [ %s ]", i+1, len(results), r.Row.Track, r.Row.Artist, r.Row.Album)
-		e := Entry{Row: r.Row}
+		e := Entry{RowNum: i + 1, Row: r.Row}
 
 		// Identical row (after normalization) already resolved: reuse the choice
 		// without asking the user again.
 		if idx, ok := solved[rowKey(r.Row)]; ok {
 			e = entries[idx]
+			e.RowNum = i + 1
 			e.Row = r.Row
 			if e.Song != nil && songIncluded(e.Status) {
 				e.Status = StatusDuplicate
 			}
-			if e.Song != nil {
-				fmt.Printf("%s %s\n", shortLabel(e.Status), formatSong(e.Song))
-			} else {
-				fmt.Printf("%s «%s» — %s [ %s ]\n", shortLabel(e.Status), r.Row.Track, r.Row.Artist, r.Row.Album)
-			}
+			trackLine(i+1, len(results), e)
 			solved[rowKey(r.Row)] = len(entries)
 			entries = append(entries, e)
 			continue
@@ -329,7 +331,7 @@ func resolveAll(ui *UI, songs []Song, results []MatchResult, nonInteractive bool
 				if r.Pick >= 0 && !optionsContain(opts, songs[r.Pick].ID) {
 					opts = append([]Option{{Song: songs[r.Pick]}}, opts...)
 				}
-				s, sk, err := ui.AskSong(header+"  → needs a decision", opts)
+				s, sk, err := ui.AskSong(r.Row, i+1, len(results), true, opts)
 				if err != nil {
 					return nil, err
 				}
@@ -346,7 +348,7 @@ func resolveAll(ui *UI, songs []Song, results []MatchResult, nonInteractive bool
 			if nonInteractive {
 				e.Status = StatusNotFound
 			} else {
-				s, sk, err := ui.AskSong(header+"  → not found", nil)
+				s, sk, err := ui.AskSong(r.Row, i+1, len(results), false, nil)
 				if err != nil {
 					return nil, err
 				}
@@ -395,11 +397,7 @@ func resolveAll(ui *UI, songs []Song, results []MatchResult, nonInteractive bool
 			}
 		}
 
-		if e.Song != nil {
-			fmt.Printf("%s %s\n", shortLabel(e.Status), formatSong(e.Song))
-		} else {
-			fmt.Printf("%s «%s» — %s [ %s ]\n", shortLabel(e.Status), r.Row.Track, r.Row.Artist, r.Row.Album)
-		}
+		trackLine(i+1, len(results), e)
 
 		solved[rowKey(r.Row)] = len(entries)
 		entries = append(entries, e)
@@ -409,31 +407,6 @@ func resolveAll(ui *UI, songs []Song, results []MatchResult, nonInteractive bool
 
 func rowKey(r Row) string {
 	return normalize(r.Track) + "\x00" + normalize(r.Artist) + "\x00" + normalize(r.Album)
-}
-
-func shortLabel(status string) string {
-	switch status {
-	case StatusExact:
-		return "✓ EXACT        "
-	case StatusAutomatic:
-		return "≈ AUTOMATIC    "
-	case StatusManual:
-		return "★ MANUAL       "
-	case StatusAmbiguousFirst:
-		return "≈ AMBIGUOUS    "
-	case StatusAmbiguousSkip:
-		return "? AMBIGUOUS    "
-	case StatusNotFound:
-		return "✗ NOT FOUND    "
-	case StatusSkipped, "SKIPPED":
-		return "- SKIPPED      "
-	case StatusDuplicate:
-		return "= DUPLICATE    "
-	case StatusDiscarded:
-		return "- DISCARDED    "
-	default:
-		return "  " + status
-	}
 }
 
 func optionsContain(opts []Option, id string) bool {
@@ -447,7 +420,7 @@ func optionsContain(opts []Option, id string) bool {
 
 func handlePlaylist(client *Client, ui *UI, name string, songIDs []string, dryRun, nonInteractive bool) error {
 	if len(songIDs) == 0 {
-		fmt.Println("\nNo tracks to add: the playlist will not be created.")
+		fmt.Printf("\n%s\n", yellow("No tracks to add: the playlist will not be created."))
 		return nil
 	}
 
@@ -462,8 +435,8 @@ func handlePlaylist(client *Client, ui *UI, name string, songIDs []string, dryRu
 
 	if existing != nil {
 		if dryRun {
-			fmt.Printf("\nDRY-RUN: would update the existing playlist «%s» (%s) with %s.\n",
-				existing.Name, tracks(existing.SongCount), tracks(len(songIDs)))
+			fmt.Printf("\n%s · would update the existing playlist %s (%s) with %s.\n",
+				yellow("dry-run"), bold("«"+existing.Name+"»"), tracks(existing.SongCount), tracks(len(songIDs)))
 			return nil
 		}
 		if nonInteractive {
@@ -485,7 +458,7 @@ func handlePlaylist(client *Client, ui *UI, name string, songIDs []string, dryRu
 					targetName = freePlaylistName(playlists, name)
 				case "rename":
 					if findPlaylist(playlists, action.NewName) != nil {
-						fmt.Printf("A playlist named «%s» already exists: choose another name.\n", action.NewName)
+						fmt.Printf("  %s\n", red(fmt.Sprintf("A playlist named «%s» already exists: choose another name.", action.NewName)))
 						continue
 					}
 					targetName = action.NewName
@@ -496,7 +469,8 @@ func handlePlaylist(client *Client, ui *UI, name string, songIDs []string, dryRu
 	}
 
 	if dryRun {
-		fmt.Printf("\nDRY-RUN: would create the playlist «%s» with %s.\n", targetName, tracks(len(songIDs)))
+		fmt.Printf("\n%s · would create the playlist %s with %s.\n",
+			yellow("dry-run"), bold("«"+targetName+"»"), tracks(len(songIDs)))
 		return nil
 	}
 
@@ -521,11 +495,11 @@ func handlePlaylist(client *Client, ui *UI, name string, songIDs []string, dryRu
 	if existingID != "" {
 		verb = "updated"
 	}
-	fmt.Printf("\nPlaylist %s: «%s» — %s", verb, targetName, tracks(len(songIDs)))
+	line := fmt.Sprintf("Playlist %s · %s · %s", verb, bold("«"+targetName+"»"), tracks(len(songIDs)))
 	if id != "" {
-		fmt.Printf(" (ID %s)", id)
+		line += dim(" (ID " + id + ")")
 	}
-	fmt.Println()
+	fmt.Printf("\n  %s %s\n", green("✓"), line)
 	return nil
 }
 
@@ -545,7 +519,7 @@ func freePlaylistName(list []PlaylistRef, base string) string {
 			return candidate
 		}
 	}
-	return base + " (nuova)"
+	return base + " (new)"
 }
 
 func printSummary(entries []Entry, songCount int, allPath, missPath string, dryRun bool) {
@@ -559,16 +533,18 @@ func printSummary(entries []Entry, songCount int, allPath, missPath string, dryR
 		stats[e.Status]++
 	}
 
-	fmt.Println("\nSummary")
-	fmt.Println("-------")
+	fmt.Printf("\n%s\n", bold("Summary"))
+	fmt.Println("  " + dim(strings.Repeat("─", 24)))
 	for _, k := range order {
 		if stats[k] > 0 {
-			fmt.Printf("  %-26s %d\n", k, stats[k])
+			fmt.Printf("  %s %5s\n", statusTag(k), num(stats[k]))
 		}
 	}
-	fmt.Printf("\nTracks in the playlist: %d\n", songCount)
+
+	fmt.Printf("\n  %s  %s\n", dim(fmt.Sprintf("%-11s", "In playlist")), bold(tracks(songCount)))
 	if dryRun {
-		fmt.Println("Dry-run mode: no changes were made to Navidrome.")
+		fmt.Printf("  %s  %s\n", dim(fmt.Sprintf("%-11s", "Mode")), yellow("dry-run · nothing was changed in Navidrome"))
 	}
-	fmt.Printf("Reports:\n  %s\n  %s\n", allPath, missPath)
+	fmt.Printf("\n  %s\n", dim("Reports"))
+	fmt.Printf("    %s\n    %s\n", allPath, missPath)
 }

@@ -24,40 +24,40 @@ func TestAskSongNumericChoice(t *testing.T) {
 		{Song: Song{ID: "1", Title: "Gianna"}, HasScore: true, Score: 0.9},
 		{Song: Song{ID: "2", Title: "Pazza idea"}, HasScore: true, Score: 0.85},
 	}
-	s, skip, err := ui.AskSong("test row", opts)
+	s, skip, err := ui.AskSong(Row{Track: "test row"}, 1, 2, true, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if skip || s == nil || s.ID != "2" {
 		t.Fatalf("unexpected choice: song=%+v skip=%v", s, skip)
 	}
-	if !strings.Contains(out.String(), "1) Gianna") || !strings.Contains(out.String(), "(0.85)") {
+	if !strings.Contains(out.String(), "Gianna") || !strings.Contains(out.String(), "0.85") {
 		t.Errorf("unexpected output:\n%s", out.String())
 	}
 }
 
 func TestAskSongDefaultAndSkip(t *testing.T) {
 	ui, _ := newTestUI("\n")
-	s, skip, err := ui.AskSong("row", []Option{{Song: Song{ID: "1", Title: "Gianna"}}})
+	s, skip, err := ui.AskSong(Row{Track: "row"}, 1, 1, true, []Option{{Song: Song{ID: "1", Title: "Gianna"}}})
 	if err != nil || skip || s == nil || s.ID != "1" {
 		t.Fatalf("Enter does not pick the first candidate: song=%+v skip=%v err=%v", s, skip, err)
 	}
 
 	ui, _ = newTestUI("s\n")
-	s, skip, err = ui.AskSong("row", nil)
+	s, skip, err = ui.AskSong(Row{Track: "row"}, 1, 1, false, nil)
 	if err != nil || !skip || s != nil {
 		t.Fatalf("s does not skip: song=%+v skip=%v err=%v", s, skip, err)
 	}
 
 	ui, _ = newTestUI("q\n")
-	if _, _, err = ui.AskSong("row", nil); err != errQuit {
+	if _, _, err = ui.AskSong(Row{Track: "row"}, 1, 1, false, nil); err != errQuit {
 		t.Errorf("q does not quit: %v", err)
 	}
 }
 
 func TestAskSongInvalidThenValid(t *testing.T) {
 	ui, out := newTestUI("99\nx\n1\n")
-	s, skip, err := ui.AskSong("row", []Option{{Song: Song{ID: "1", Title: "Gianna"}}})
+	s, skip, err := ui.AskSong(Row{Track: "row"}, 1, 1, true, []Option{{Song: Song{ID: "1", Title: "Gianna"}}})
 	if err != nil || skip || s == nil || s.ID != "1" {
 		t.Fatalf("unexpected choice: song=%+v skip=%v err=%v", s, skip, err)
 	}
@@ -79,7 +79,7 @@ func TestAskSongSearchWithPrefix(t *testing.T) {
 	ui, out := newTestUI("Search Gianna\n1\n")
 	ui.client = &Client{Base: srv.URL, User: "u", Pass: "p", HTTP: srv.Client()}
 
-	s, skip, err := ui.AskSong("row", nil)
+	s, skip, err := ui.AskSong(Row{Track: "row"}, 1, 1, false, nil)
 	if err != nil || skip || s == nil || s.ID != "abc" {
 		t.Fatalf("search failed: song=%+v skip=%v err=%v", s, skip, err)
 	}
@@ -105,7 +105,7 @@ func TestAskSongManualID(t *testing.T) {
 	ui, _ := newTestUI("i xyz\n")
 	ui.client = &Client{Base: srv.URL, User: "u", Pass: "p", HTTP: srv.Client()}
 
-	s, skip, err := ui.AskSong("row", nil)
+	s, skip, err := ui.AskSong(Row{Track: "row"}, 1, 1, false, nil)
 	if err != nil || skip || s == nil || s.ID != "xyz" {
 		t.Fatalf("manual ID failed: song=%+v skip=%v err=%v", s, skip, err)
 	}
