@@ -37,8 +37,8 @@ On macOS you may need to allow **local network** access on first launch (see
 Go 1.23 or newer is required.
 
 ```sh
-git clone <repo>
-cd navidrome-importer
+git clone https://github.com/roscio1975/Navidrome-Playlist-Importer.git
+cd Navidrome-Playlist-Importer
 make build          # creates ./navidrome-importer
 make test           # runs the tests
 make dist           # cross-compiles every platform into dist/ + SHA256SUMS
