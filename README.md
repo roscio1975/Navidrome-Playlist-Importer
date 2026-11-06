@@ -42,7 +42,7 @@ git clone <repo>
 cd navidrome-importer
 make build          # crea ./navidrome-importer
 make test           # esegue i test
-make dist           # crea i binari per tutte le piattaforme in dist/
+make dist           # crea i binari per tutte le piattaforme in dist/ + SHA256SUMS
 ```
 
 ---
@@ -181,8 +181,9 @@ navidrome-importer [opzioni] <file.csv>
 |---|---|
 | `--name <nome>` | nome della playlist (default: nome del file CSV) |
 | `--config <file>` | file di configurazione alternativo |
-| `--setup` | esegue la configurazione guidata |
-| `--delimiter <car>` | forza il separatore CSV (es. `--delimiter ";"`) |
+| `--setup` | esegue la configurazione guidata e termina |
+| `--csv <file>` | file CSV (alternativa al primo argomento) |
+| `--delimiter <car>` | forza il separatore CSV (es. `--delimiter ";"` o `--delimiter "\t"`) |
 | `--no-header` | il CSV non ha riga di intestazione |
 | `--refresh` | riscarica la libreria ignorando la cache |
 | `--dry-run` | mostra cosa verrebbe fatto, senza creare/modificare la playlist |
