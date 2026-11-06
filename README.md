@@ -298,4 +298,4 @@ Subsonic ID (visible in the Navidrome web interface on the track page).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+GNU General Public License v3.0 — see [LICENSE](LICENSE).

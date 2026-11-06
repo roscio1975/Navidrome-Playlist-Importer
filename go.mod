@@ -1,4 +1,4 @@
-module github.com/smanocch/navidrome-importer
+module github.com/roscio1975/navidrome-playlist-impoter
 
 go 1.23
 
