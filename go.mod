@@ -1,4 +1,4 @@
-module github.com/roscio1975/navidrome-playlist-impoter
+module github.com/roscio1975/navidrome-playlist-importer
 
 go 1.23
 
