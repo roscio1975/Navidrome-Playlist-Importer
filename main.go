@@ -11,41 +11,41 @@ import (
 	"golang.org/x/term"
 )
 
-// version è sovrascrivibile in fase di build con -ldflags "-X main.version=..."
+// version can be overridden at build time with -ldflags "-X main.version=...".
 var version = "1.0.0"
 
-// brani restituisce "1 brano" oppure "N brani".
-func brani(n int) string {
+// tracks returns "1 track" or "N tracks".
+func tracks(n int) string {
 	if n == 1 {
-		return "1 brano"
+		return "1 track"
 	}
-	return fmt.Sprintf("%d brani", n)
+	return fmt.Sprintf("%d tracks", n)
 }
 
 func main() {
 	if err := run(); err != nil {
 		if errors.Is(err, errQuit) {
-			fmt.Println("\nOperazione annullata.")
+			fmt.Println("\nOperation cancelled.")
 			os.Exit(130)
 		}
-		fmt.Fprintf(os.Stderr, "\nErrore: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\nError: %v\n", err)
 		os.Exit(1)
 	}
 }
 
 func run() error {
 	var (
-		configFlag  = flag.String("config", "", "file di configurazione (default: cartella config utente)")
-		csvFlag     = flag.String("csv", "", "file CSV da importare (alternativa al primo argomento)")
-		nameFlag    = flag.String("name", "", "nome della playlist (default: nome del file CSV)")
-		delimFlag   = flag.String("delimiter", "", "separatore CSV (default: rilevato automaticamente)")
-		noHeader    = flag.Bool("no-header", false, "il CSV non ha riga di intestazione")
-		refresh     = flag.Bool("refresh", false, "riscarica la libreria ignorando la cache")
-		dryRun      = flag.Bool("dry-run", false, "mostra cosa verrebbe fatto senza modificare Navidrome")
-		yesFlag     = flag.Bool("yes", false, "non interattivo: usa le scelte automatiche per tutti i casi dubbi")
-		reportFlag  = flag.String("report-dir", "", "cartella dei report (default: cartella del CSV)")
-		setupFlag   = flag.Bool("setup", false, "esegue la configurazione guidata e salva il file")
-		versionFlag = flag.Bool("version", false, "mostra la versione")
+		configFlag  = flag.String("config", "", "configuration file (default: user config directory)")
+		csvFlag     = flag.String("csv", "", "CSV file to import (alternative to the positional argument)")
+		nameFlag    = flag.String("name", "", "playlist name (default: CSV file name)")
+		delimFlag   = flag.String("delimiter", "", "CSV delimiter (default: auto-detected)")
+		noHeader    = flag.Bool("no-header", false, "the CSV has no header row")
+		refresh     = flag.Bool("refresh", false, "download the library again, ignoring the cache")
+		dryRun      = flag.Bool("dry-run", false, "show what would be done without changing Navidrome")
+		yesFlag     = flag.Bool("yes", false, "non-interactive: use automatic choices for every ambiguous track")
+		reportFlag  = flag.String("report-dir", "", "report directory (default: the CSV directory)")
+		setupFlag   = flag.Bool("setup", false, "run the guided setup and save the configuration file")
+		versionFlag = flag.Bool("version", false, "print the version")
 	)
 	flag.Usage = usage
 	flag.Parse()
@@ -62,7 +62,7 @@ func run() error {
 
 	if *setupFlag {
 		if !term.IsTerminal(int(os.Stdin.Fd())) {
-			return errors.New("la configurazione guidata richiede un terminale interattivo")
+			return errors.New("the guided setup requires an interactive terminal")
 		}
 		if _, err := setupConfig(cfgPath); err != nil {
 			return err
@@ -76,7 +76,7 @@ func run() error {
 	}
 	if csvPath == "" {
 		flag.Usage()
-		return errors.New("specifica il file CSV da importare")
+		return errors.New("please specify the CSV file to import")
 	}
 
 	cfg, err := loadOrSetupConfig(cfgPath)
@@ -91,12 +91,12 @@ func run() error {
 
 	interactive := !*yesFlag && term.IsTerminal(int(os.Stdin.Fd()))
 	if !interactive && !*yesFlag {
-		return errors.New("input non interattivo: usa --yes per eseguire senza domande")
+		return errors.New("non-interactive input: use --yes to run without prompts")
 	}
 
-	fmt.Printf("Navidrome: %s (utente %s)\n", client.Base, client.User)
+	fmt.Printf("Navidrome: %s (user %s)\n", client.Base, client.User)
 	if err := client.Ping(); err != nil {
-		return fmt.Errorf("impossibile connettersi a Navidrome: %w", err)
+		return fmt.Errorf("cannot connect to Navidrome: %w", err)
 	}
 
 	songs, err := getLibrary(client, *refresh)
@@ -108,7 +108,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("CSV: %d righe, separatore %q\n", len(rows), string(delim))
+	fmt.Printf("CSV: %d rows, delimiter %q\n", len(rows), string(delim))
 
 	unique, mapping := dedupeRows(rows)
 	matcher := NewMatcher(songs)
@@ -124,7 +124,7 @@ func run() error {
 	for _, r := range uniqueResults {
 		counts[r.Class]++
 	}
-	fmt.Printf("Brani unici: %d — esatti: %d, automatici: %d, da decidere: %d, non trovati: %d\n",
+	fmt.Printf("Unique tracks: %d — exact: %d, automatic: %d, to decide: %d, not found: %d\n",
 		len(unique), counts["exact"], counts["auto"], counts["ambiguous"], counts["none"])
 
 	playlistName := *nameFlag
@@ -171,15 +171,15 @@ func run() error {
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "navidrome-importer %s\n\n", version)
-	fmt.Fprintln(os.Stderr, "Importa una playlist CSV in Navidrome con abbinamento fuzzy dei brani.")
+	fmt.Fprintln(os.Stderr, "Import a CSV playlist into Navidrome with fuzzy track matching.")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Uso:")
-	fmt.Fprintln(os.Stderr, "  navidrome-importer [opzioni] <file.csv>")
+	fmt.Fprintln(os.Stderr, "Usage:")
+	fmt.Fprintln(os.Stderr, "  navidrome-importer [options] <file.csv>")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Opzioni:")
+	fmt.Fprintln(os.Stderr, "Options:")
 	flag.PrintDefaults()
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Esempi:")
+	fmt.Fprintln(os.Stderr, "Examples:")
 	fmt.Fprintln(os.Stderr, `  navidrome-importer "Italian Beat.csv"`)
 	fmt.Fprintln(os.Stderr, `  navidrome-importer --dry-run "Italian Beat.csv"`)
 	fmt.Fprintln(os.Stderr, `  navidrome-importer --name "Metal" --refresh "Metal.csv"`)
@@ -189,10 +189,10 @@ func loadOrSetupConfig(path string) (*Config, error) {
 	cfg, err := loadConfig(path)
 	if err != nil {
 		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("lettura configurazione: %w", err)
+			return nil, fmt.Errorf("reading configuration: %w", err)
 		}
 		if !term.IsTerminal(int(os.Stdin.Fd())) {
-			return nil, fmt.Errorf("file di configurazione non trovato: %s\nEsegui `navidrome-importer --setup` da un terminale per crearlo", path)
+			return nil, fmt.Errorf("configuration file not found: %s\nRun `navidrome-importer --setup` from a terminal to create it", path)
 		}
 		cfg, err = setupConfig(path)
 		if err != nil {
@@ -212,7 +212,7 @@ func loadOrSetupConfig(path string) (*Config, error) {
 
 	if cfg.URL == "" || cfg.User == "" || cfg.Password == "" {
 		if !term.IsTerminal(int(os.Stdin.Fd())) {
-			return nil, fmt.Errorf("configurazione incompleta: %s\nServono url, user e password", path)
+			return nil, fmt.Errorf("incomplete configuration: %s\nurl, user and password are required", path)
 		}
 		return setupConfig(path)
 	}
@@ -224,28 +224,28 @@ func getLibrary(client *Client, refresh bool) ([]Song, error) {
 
 	if !refresh && cachePath != "" {
 		if songs, fetchedAt, ok := loadLibraryCache(cachePath); ok {
-			fmt.Printf("Libreria: %s (cache del %s, usa --refresh per aggiornare)\n",
-				brani(len(songs)), fetchedAt.Format("02/01/2006 15:04"))
+			fmt.Printf("Library: %s (cached on %s, use --refresh to update)\n",
+				tracks(len(songs)), fetchedAt.Format("2006-01-02 15:04"))
 			return songs, nil
 		}
 	}
 
-	fmt.Println("Libreria: scarico l'elenco completo da Navidrome (può richiedere qualche minuto)...")
+	fmt.Println("Library: downloading the full list from Navidrome (this may take a few minutes)...")
 	songs, err := fetchLibrary(client)
 	if err != nil {
 		return nil, err
 	}
 	if cachePath != "" {
 		if err := saveLibraryCache(cachePath, songs); err != nil {
-			fmt.Fprintf(os.Stderr, "Attenzione: impossibile salvare la cache: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Warning: cannot save the cache: %v\n", err)
 		}
 	}
-	fmt.Printf("Libreria: %s indicizzati\n", brani(len(songs)))
+	fmt.Printf("Library: %s indexed\n", tracks(len(songs)))
 	return songs, nil
 }
 
-// dedupeRows elimina le righe identiche (dopo normalizzazione) e restituisce
-// la mappa riga originale -> riga unica.
+// dedupeRows removes identical rows (after normalization) and returns the
+// original row -> unique row mapping.
 func dedupeRows(rows []Row) ([]Row, []int) {
 	unique := make([]Row, 0, len(rows))
 	mapping := make([]int, len(rows))
@@ -265,7 +265,7 @@ func dedupeRows(rows []Row) ([]Row, []int) {
 
 func songIncluded(status string) bool {
 	switch status {
-	case "ESATTO", "AUTOMATICO", "SCELTO DA TE", "AMBIGUO (prima scelta)":
+	case StatusExact, StatusAutomatic, StatusManual, StatusAmbiguousFirst:
 		return true
 	}
 	return false
@@ -280,13 +280,13 @@ func resolveAll(ui *UI, songs []Song, results []MatchResult, nonInteractive bool
 		header := fmt.Sprintf("[%d/%d] «%s» — %s [ %s ]", i+1, len(results), r.Row.Track, r.Row.Artist, r.Row.Album)
 		e := Entry{Row: r.Row}
 
-		// Riga identica (dopo normalizzazione) già risolta: riuso la scelta
-		// senza chiedere di nuovo all'utente.
+		// Identical row (after normalization) already resolved: reuse the choice
+		// without asking the user again.
 		if idx, ok := solved[rowKey(r.Row)]; ok {
 			e = entries[idx]
 			e.Row = r.Row
 			if e.Song != nil && songIncluded(e.Status) {
-				e.Status = "DUPLICATO"
+				e.Status = StatusDuplicate
 			}
 			if e.Song != nil {
 				fmt.Printf("%s %s\n", shortLabel(e.Status), formatSong(e.Song))
@@ -303,59 +303,59 @@ func resolveAll(ui *UI, songs []Song, results []MatchResult, nonInteractive bool
 		case "exact":
 			if r.Pick >= 0 {
 				e.Song = &songs[r.Pick]
-				e.Status = "ESATTO"
+				e.Status = StatusExact
 			} else {
-				e.Status = "NON TROVATO"
+				e.Status = StatusNotFound
 			}
 
 		case "auto":
 			if r.Pick >= 0 {
 				e.Song = &songs[r.Pick]
-				e.Status = "AUTOMATICO"
+				e.Status = StatusAutomatic
 			} else {
-				e.Status = "NON TROVATO"
+				e.Status = StatusNotFound
 			}
 
 		case "ambiguous":
 			if nonInteractive {
 				if r.Pick >= 0 {
 					e.Song = &songs[r.Pick]
-					e.Status = "AMBIGUO (prima scelta)"
+					e.Status = StatusAmbiguousFirst
 				} else {
-					e.Status = "AMBIGUO (saltato)"
+					e.Status = StatusAmbiguousSkip
 				}
 			} else {
 				opts := optionsFromCandidates(songs, r.Cands)
 				if r.Pick >= 0 && !optionsContain(opts, songs[r.Pick].ID) {
 					opts = append([]Option{{Song: songs[r.Pick]}}, opts...)
 				}
-				s, sk, err := ui.AskSong(header+"  → da decidere", opts)
+				s, sk, err := ui.AskSong(header+"  → needs a decision", opts)
 				if err != nil {
 					return nil, err
 				}
 				skip = sk
 				if skip {
-					e.Status = "SALTATO (tua scelta)"
+					e.Status = StatusSkipped
 				} else {
 					e.Song = s
-					e.Status = "SCELTO DA TE"
+					e.Status = StatusManual
 				}
 			}
 
 		default:
 			if nonInteractive {
-				e.Status = "NON TROVATO"
+				e.Status = StatusNotFound
 			} else {
-				s, sk, err := ui.AskSong(header+"  → non trovato", nil)
+				s, sk, err := ui.AskSong(header+"  → not found", nil)
 				if err != nil {
 					return nil, err
 				}
 				skip = sk
 				if skip {
-					e.Status = "SALTATO (tua scelta)"
+					e.Status = StatusSkipped
 				} else {
 					e.Song = s
-					e.Status = "SCELTO DA TE"
+					e.Status = StatusManual
 				}
 			}
 		}
@@ -366,11 +366,11 @@ func resolveAll(ui *UI, songs []Song, results []MatchResult, nonInteractive bool
 				prev := &entries[prevIdx]
 				switch {
 				case prev.Song == nil:
-					// niente da confrontare
+					// nothing to compare
 				case prev.Song.ID == e.Song.ID:
-					e.Status = "DUPLICATO"
+					e.Status = StatusDuplicate
 				case nonInteractive:
-					e.Status = "SCARTATO (doppione)"
+					e.Status = StatusDiscarded
 				default:
 					choice, err := ui.AskDuplicate(*prev, e)
 					if err != nil {
@@ -378,15 +378,15 @@ func resolveAll(ui *UI, songs []Song, results []MatchResult, nonInteractive bool
 					}
 					switch choice {
 					case KeepFirst:
-						e.Status = "SCARTATO (doppione)"
+						e.Status = StatusDiscarded
 					case KeepSecond:
-						prev.Status = "SCARTATO (doppione)"
+						prev.Status = StatusDiscarded
 						seenKey[key] = len(entries)
 					case KeepBoth:
-						// entrambi restano
+						// both are kept
 					case SkipBoth:
-						prev.Status = "SCARTATO (doppione)"
-						e.Status = "SALTATO (tua scelta)"
+						prev.Status = StatusDiscarded
+						e.Status = StatusSkipped
 						delete(seenKey, key)
 					}
 				}
@@ -413,24 +413,24 @@ func rowKey(r Row) string {
 
 func shortLabel(status string) string {
 	switch status {
-	case "ESATTO":
-		return "✓ ESATTO      "
-	case "AUTOMATICO":
-		return "≈ AUTOMATICO  "
-	case "SCELTO DA TE":
-		return "★ SCELTO      "
-	case "AMBIGUO (prima scelta)":
-		return "≈ AMBIGUO     "
-	case "AMBIGUO (saltato)":
-		return "? AMBIGUO     "
-	case "NON TROVATO":
-		return "✗ NON TROVATO "
-	case "SALTATO (tua scelta)", "SALTATO":
-		return "- SALTATO     "
-	case "DUPLICATO":
-		return "= DUPLICATO   "
-	case "SCARTATO (doppione)":
-		return "- DOPPIONE    "
+	case StatusExact:
+		return "✓ EXACT        "
+	case StatusAutomatic:
+		return "≈ AUTOMATIC    "
+	case StatusManual:
+		return "★ MANUAL       "
+	case StatusAmbiguousFirst:
+		return "≈ AMBIGUOUS    "
+	case StatusAmbiguousSkip:
+		return "? AMBIGUOUS    "
+	case StatusNotFound:
+		return "✗ NOT FOUND    "
+	case StatusSkipped, "SKIPPED":
+		return "- SKIPPED      "
+	case StatusDuplicate:
+		return "= DUPLICATE    "
+	case StatusDiscarded:
+		return "- DISCARDED    "
 	default:
 		return "  " + status
 	}
@@ -447,13 +447,13 @@ func optionsContain(opts []Option, id string) bool {
 
 func handlePlaylist(client *Client, ui *UI, name string, songIDs []string, dryRun, nonInteractive bool) error {
 	if len(songIDs) == 0 {
-		fmt.Println("\nNessun brano da inserire: la playlist non verrà creata.")
+		fmt.Println("\nNo tracks to add: the playlist will not be created.")
 		return nil
 	}
 
 	playlists, err := client.GetPlaylists()
 	if err != nil {
-		return fmt.Errorf("lettura playlist: %w", err)
+		return fmt.Errorf("reading playlists: %w", err)
 	}
 
 	existing := findPlaylist(playlists, name)
@@ -462,8 +462,8 @@ func handlePlaylist(client *Client, ui *UI, name string, songIDs []string, dryRu
 
 	if existing != nil {
 		if dryRun {
-			fmt.Printf("\nDRY-RUN: aggiornerei la playlist esistente «%s» (%s) con %s.\n",
-				existing.Name, brani(existing.SongCount), brani(len(songIDs)))
+			fmt.Printf("\nDRY-RUN: would update the existing playlist «%s» (%s) with %s.\n",
+				existing.Name, tracks(existing.SongCount), tracks(len(songIDs)))
 			return nil
 		}
 		if nonInteractive {
@@ -485,7 +485,7 @@ func handlePlaylist(client *Client, ui *UI, name string, songIDs []string, dryRu
 					targetName = freePlaylistName(playlists, name)
 				case "rename":
 					if findPlaylist(playlists, action.NewName) != nil {
-						fmt.Printf("Esiste già una playlist «%s»: scegli un altro nome.\n", action.NewName)
+						fmt.Printf("A playlist named «%s» already exists: choose another name.\n", action.NewName)
 						continue
 					}
 					targetName = action.NewName
@@ -496,7 +496,7 @@ func handlePlaylist(client *Client, ui *UI, name string, songIDs []string, dryRu
 	}
 
 	if dryRun {
-		fmt.Printf("\nDRY-RUN: creerei la playlist «%s» con %s.\n", targetName, brani(len(songIDs)))
+		fmt.Printf("\nDRY-RUN: would create the playlist «%s» with %s.\n", targetName, tracks(len(songIDs)))
 		return nil
 	}
 
@@ -510,18 +510,18 @@ func handlePlaylist(client *Client, ui *UI, name string, songIDs []string, dryRu
 		pl, err = client.CreatePlaylist(targetName, songIDs)
 	}
 	if err != nil {
-		return fmt.Errorf("creazione playlist: %w", err)
+		return fmt.Errorf("saving playlist: %w", err)
 	}
 
 	id := ""
 	if pl != nil {
 		id = pl.ID
 	}
-	verb := "creata"
+	verb := "created"
 	if existingID != "" {
-		verb = "aggiornata"
+		verb = "updated"
 	}
-	fmt.Printf("\nPlaylist %s: «%s» — %s", verb, targetName, brani(len(songIDs)))
+	fmt.Printf("\nPlaylist %s: «%s» — %s", verb, targetName, tracks(len(songIDs)))
 	if id != "" {
 		fmt.Printf(" (ID %s)", id)
 	}
@@ -550,25 +550,25 @@ func freePlaylistName(list []PlaylistRef, base string) string {
 
 func printSummary(entries []Entry, songCount int, allPath, missPath string, dryRun bool) {
 	order := []string{
-		"ESATTO", "AUTOMATICO", "AMBIGUO (prima scelta)", "SCELTO DA TE",
-		"NON TROVATO", "AMBIGUO (saltato)", "SALTATO (tua scelta)",
-		"DUPLICATO", "SCARTATO (doppione)",
+		StatusExact, StatusAutomatic, StatusAmbiguousFirst, StatusManual,
+		StatusNotFound, StatusAmbiguousSkip, StatusSkipped,
+		StatusDuplicate, StatusDiscarded,
 	}
 	stats := map[string]int{}
 	for _, e := range entries {
 		stats[e.Status]++
 	}
 
-	fmt.Println("\nRiepilogo")
-	fmt.Println("---------")
+	fmt.Println("\nSummary")
+	fmt.Println("-------")
 	for _, k := range order {
 		if stats[k] > 0 {
 			fmt.Printf("  %-26s %d\n", k, stats[k])
 		}
 	}
-	fmt.Printf("\nBrani nella playlist: %d\n", songCount)
+	fmt.Printf("\nTracks in the playlist: %d\n", songCount)
 	if dryRun {
-		fmt.Println("Modalità dry-run: nessuna modifica effettuata su Navidrome.")
+		fmt.Println("Dry-run mode: no changes were made to Navidrome.")
 	}
-	fmt.Printf("Report:\n  %s\n  %s\n", allPath, missPath)
+	fmt.Printf("Reports:\n  %s\n  %s\n", allPath, missPath)
 }

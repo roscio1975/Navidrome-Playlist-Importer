@@ -6,15 +6,15 @@ import (
 	"testing"
 )
 
-// Test di parità con la pipeline Python usata per validare la logica.
-// Sono attivi solo se vengono impostate le variabili d'ambiente:
+// Parity tests against the Python pipeline used to validate the logic.
+// They run only when these environment variables are set:
 //
-//	PARITY_CACHE        file JSON con l'array dei brani della libreria
-//	PARITY_DIR          cartella con i file matches_*.json
-//	PARITY_CSV_ITALIAN  percorso del CSV "Italian Beat.csv"
-//	PARITY_CSV_ALLE     percorso del CSV "Allegrezza.csv"
+//	PARITY_CACHE        JSON file with the library track array
+//	PARITY_DIR          directory containing the matches_*.json files
+//	PARITY_CSV_ITALIAN  path to "Italian Beat.csv"
+//	PARITY_CSV_ALLE     path to "Allegrezza.csv"
 //
-// Senza queste variabili i test vengono saltati.
+// Without these variables the tests are skipped.
 
 type pyResult struct {
 	Track  string `json:"track"`
@@ -72,7 +72,7 @@ func TestParity(t *testing.T) {
 			}
 			unique, _ := dedupeRows(rows)
 			if len(unique) != tc.total {
-				t.Fatalf("righe uniche: go=%d attese=%d", len(unique), tc.total)
+				t.Fatalf("unique rows: go=%d want=%d", len(unique), tc.total)
 			}
 
 			m := NewMatcher(songs)
@@ -97,8 +97,8 @@ func TestParity(t *testing.T) {
 				if got[i].Class == want.Class && got[i].Pick == wantPick {
 					continue
 				}
-				// Due ID diversi ma stesso titolo/artista/album sono lo stesso brano
-				// duplicato in libreria: la scelta è equivalente.
+				// Two different IDs with the same title/artist/album are the same
+				// track duplicated in the library: the choice is equivalent.
 				if got[i].Class == want.Class && got[i].Pick >= 0 && wantPick >= 0 {
 					a, b := songs[got[i].Pick], songs[wantPick]
 					if normalize(a.Title) == normalize(b.Title) &&
@@ -108,11 +108,11 @@ func TestParity(t *testing.T) {
 					}
 				}
 				diff++
-				t.Errorf("riga %d %q — %q: go=%s/pick=%d python=%s/pick=%d", i,
+				t.Errorf("row %d %q — %q: go=%s/pick=%d python=%s/pick=%d", i,
 					want.Track, want.Artist, got[i].Class, got[i].Pick, want.Class, wantPick)
 			}
 			if diff > 0 {
-				t.Fatalf("%d righe con esito diverso", diff)
+				t.Fatalf("%d rows with a different outcome", diff)
 			}
 		})
 	}

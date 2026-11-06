@@ -21,7 +21,7 @@ fmt:
 clean:
 	rm -rf $(BINARY) $(BINARY).exe dist
 
-# Crea i binari per tutte le piattaforme in dist/
+# Build the binaries for every platform into dist/
 dist:
 	rm -rf dist
 	mkdir -p dist
@@ -40,4 +40,4 @@ dist:
 	else \
 		sha256sum * > SHA256SUMS; \
 	fi
-	@echo "Fatto: binari in dist/"
+	@echo "Done: binaries in dist/"

@@ -27,13 +27,13 @@ func TestReadCSVWithHeader(t *testing.T) {
 		t.Fatal(err)
 	}
 	if delim != ';' {
-		t.Errorf("separatore = %q, atteso ';'", delim)
+		t.Errorf("delimiter = %q, want ';'", delim)
 	}
 	if len(rows) != 2 {
-		t.Fatalf("righe = %d, attese 2", len(rows))
+		t.Fatalf("rows = %d, want 2", len(rows))
 	}
 	if rows[0] != (Row{Track: "Piazza Grande", Artist: "Lucio Dalla", Album: "Gli anni settanta"}) {
-		t.Errorf("riga 0 inattesa: %+v", rows[0])
+		t.Errorf("unexpected row 0: %+v", rows[0])
 	}
 }
 
@@ -47,10 +47,10 @@ func TestReadCSVCommaAndHeaderVariants(t *testing.T) {
 		t.Fatal(err)
 	}
 	if delim != ',' {
-		t.Errorf("separatore = %q, atteso ','", delim)
+		t.Errorf("delimiter = %q, want ','", delim)
 	}
 	if len(rows) != 1 || rows[0].Track != "Gianna" {
-		t.Fatalf("righe inattese: %+v", rows)
+		t.Fatalf("unexpected rows: %+v", rows)
 	}
 }
 
@@ -63,10 +63,10 @@ func TestReadCSVNoHeader(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(rows) != 2 {
-		t.Fatalf("righe = %d, attese 2", len(rows))
+		t.Fatalf("rows = %d, want 2", len(rows))
 	}
 	if rows[1].Track != "Pazza idea" || rows[1].Album != "Le Più Belle Canzoni" {
-		t.Errorf("riga 1 inattesa: %+v", rows[1])
+		t.Errorf("unexpected row 1: %+v", rows[1])
 	}
 }
 
@@ -79,17 +79,17 @@ func TestReadCSVTabDelimiterEscape(t *testing.T) {
 		t.Fatal(err)
 	}
 	if delim != '\t' {
-		t.Errorf("separatore = %q, atteso TAB", delim)
+		t.Errorf("delimiter = %q, want TAB", delim)
 	}
 	if len(rows) != 1 || rows[0].Track != "Gianna" || rows[0].Album != "Anni 70" {
-		t.Fatalf("righe inattese: %+v", rows)
+		t.Fatalf("unexpected rows: %+v", rows)
 	}
 }
 
 func TestReadCSVEmpty(t *testing.T) {
 	p := writeTemp(t, "test.csv", "Track name;Artist name;Album\n")
 	if _, _, err := readCSV(p, "", false); err == nil {
-		t.Fatal("atteso errore per CSV senza brani")
+		t.Fatal("expected an error for a CSV with no tracks")
 	}
 }
 
@@ -101,27 +101,27 @@ func TestDedupeRows(t *testing.T) {
 	}
 	unique, mapping := dedupeRows(rows)
 	if len(unique) != 2 {
-		t.Fatalf("uniche = %d, attese 2", len(unique))
+		t.Fatalf("unique rows = %d, want 2", len(unique))
 	}
 	if len(mapping) != 3 || mapping[0] != mapping[1] || mapping[2] == mapping[0] {
-		t.Errorf("mapping inatteso: %v", mapping)
+		t.Errorf("unexpected mapping: %v", mapping)
 	}
 }
 
 func TestWriteReports(t *testing.T) {
 	dir := t.TempDir()
 	entries := []Entry{
-		{Row: Row{Track: "Gianna", Artist: "Rino Gaetano", Album: "Anni 70"}, Song: &Song{Title: "Gianna", Artist: "Rino Gaetano", Album: "La storia"}, Status: "ESATTO"},
-		{Row: Row{Track: "Assente", Artist: "Nessuno", Album: "Mai"}, Status: "NON TROVATO"},
-		{Row: Row{Track: "Saltato", Artist: "Nessuno", Album: "Mai"}, Status: "SALTATO (tua scelta)"},
+		{Row: Row{Track: "Gianna", Artist: "Rino Gaetano", Album: "Anni 70"}, Song: &Song{Title: "Gianna", Artist: "Rino Gaetano", Album: "La storia"}, Status: StatusExact},
+		{Row: Row{Track: "Assente", Artist: "Nessuno", Album: "Mai"}, Status: StatusNotFound},
+		{Row: Row{Track: "Saltato", Artist: "Nessuno", Album: "Mai"}, Status: StatusSkipped},
 	}
 
 	all, miss, err := writeReports(dir, "Test/Playlist", entries, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if filepath.Base(all) != "Playlist Test-Playlist - abbinamenti.csv" {
-		t.Errorf("nome file inatteso: %s", all)
+	if filepath.Base(all) != "Playlist Test-Playlist - matches.csv" {
+		t.Errorf("unexpected file name: %s", all)
 	}
 
 	raw, err := os.ReadFile(all)
@@ -129,13 +129,13 @@ func TestWriteReports(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(string(raw), "\ufeff") {
-		t.Error("BOM UTF-8 mancante")
+		t.Error("missing UTF-8 BOM")
 	}
-	if !strings.Contains(string(raw), "Gianna;Rino Gaetano;Anni 70;ESATTO;Gianna;Rino Gaetano;La storia") {
-		t.Error("riga abbinamento mancante o formato errato")
+	if !strings.Contains(string(raw), "Gianna;Rino Gaetano;Anni 70;EXACT;Gianna;Rino Gaetano;La storia") {
+		t.Error("missing match row or wrong format")
 	}
 	if !strings.Contains(string(raw), "\r\n") {
-		t.Error("righe non terminate con CRLF")
+		t.Error("rows not terminated with CRLF")
 	}
 
 	rawMiss, err := os.ReadFile(miss)
@@ -144,9 +144,9 @@ func TestWriteReports(t *testing.T) {
 	}
 	text := string(rawMiss)
 	if !strings.Contains(text, "Assente") || !strings.Contains(text, "Saltato") {
-		t.Errorf("file non trovati incompleto: %s", text)
+		t.Errorf("not-found file is incomplete: %s", text)
 	}
 	if strings.Contains(text, "Gianna") {
-		t.Error("il file non trovati non deve contenere i brani abbinati")
+		t.Error("the not-found file must not contain matched tracks")
 	}
 }

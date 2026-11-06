@@ -20,7 +20,7 @@ chiave-ignorata = valore
 		t.Fatal(err)
 	}
 	if c.URL != "http://server:4533" || c.User != "mario" || c.Password != "segreta" {
-		t.Errorf("configurazione inattesa: %+v", c)
+		t.Errorf("unexpected configuration: %+v", c)
 	}
 }
 
@@ -36,7 +36,7 @@ func TestSaveAndReloadConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Errorf("permessi = %o, attesi 600", perm)
+		t.Errorf("permissions = %o, want 600", perm)
 	}
 
 	out, err := loadConfig(p)
@@ -44,12 +44,12 @@ func TestSaveAndReloadConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	if *out != *in {
-		t.Errorf("rilettura = %+v, atteso %+v", out, in)
+		t.Errorf("reloaded = %+v, want %+v", out, in)
 	}
 }
 
 func TestLoadConfigMissingFile(t *testing.T) {
 	if _, err := loadConfig(filepath.Join(t.TempDir(), "assente.conf")); !os.IsNotExist(err) {
-		t.Errorf("errore = %v, atteso os.IsNotExist", err)
+		t.Errorf("error = %v, want os.IsNotExist", err)
 	}
 }

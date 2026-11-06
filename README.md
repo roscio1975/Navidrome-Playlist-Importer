@@ -1,28 +1,27 @@
 # navidrome-importer
 
-Importa una playlist in formato CSV dentro **Navidrome**, abbinando automaticamente i brani
-della tua libreria.
+Import a CSV playlist into **Navidrome**, matching tracks against your library automatically.
 
-Il programma scarica l'elenco completo della libreria tramite l'API Subsonic di Navidrome,
-confronta ogni riga del CSV con i brani presenti (anche con differenze di accenti, punteggiatura,
-maiuscole, versioni live/remaster, feat., album diversi...) e ti chiede una decisione solo per i
-casi davvero dubbi.
+The program downloads the full library through Navidrome's Subsonic API, compares every CSV row
+with the tracks in your collection (tolerating accents, punctuation, letter case, live/remaster
+versions, feat., different albums, and so on) and only asks for a decision when a case is truly
+ambiguous.
 
-- **Interfaccia**: da terminale, in italiano, con menu numerati.
-- **Nessuna dipendenza esterna**: un singolo eseguibile per macOS, Linux e Windows.
-- **Report**: due file CSV (abbinamenti e brani non trovati) pronti per Excel.
-- **Configurazione**: semplice file di testo `chiave = valore`.
+- **Interface**: terminal-based, with numbered menus.
+- **No runtime dependencies**: a single executable for macOS, Linux and Windows.
+- **Reports**: two CSV files (matches and tracks not found) ready for Excel.
+- **Configuration**: a simple `key = value` text file.
 
 ---
 
-## Installazione
+## Installation
 
-### Binario pronto
+### Prebuilt binary
 
-Scarica l'eseguibile per il tuo sistema dalla pagina **Releases** del repository e mettilo in una
-cartella del `PATH` (oppure richiamalo con il percorso completo).
+Download the executable for your system from the repository's **Releases** page and put it in a
+directory on your `PATH` (or call it with its full path).
 
-| Sistema | File |
+| System | File |
 |---|---|
 | macOS Apple Silicon | `navidrome-importer-darwin-arm64` |
 | macOS Intel | `navidrome-importer-darwin-amd64` |
@@ -30,70 +29,69 @@ cartella del `PATH` (oppure richiamalo con il percorso completo).
 | Linux ARM64 | `navidrome-importer-linux-arm64` |
 | Windows x86_64 | `navidrome-importer-windows-amd64.exe` |
 
-Su macOS, al primo avvio potresti dover autorizzare l'accesso alla **rete locale** (vedi
-[Risoluzione problemi](#macos-no-route-to-host)).
+On macOS you may need to allow **local network** access on first launch (see
+[Troubleshooting](#no-route-to-host-on-macos)).
 
-### Compilazione dai sorgenti
+### Building from source
 
-Serve Go 1.23 o successivo.
+Go 1.23 or newer is required.
 
 ```sh
 git clone <repo>
 cd navidrome-importer
-make build          # crea ./navidrome-importer
-make test           # esegue i test
-make dist           # crea i binari per tutte le piattaforme in dist/ + SHA256SUMS
+make build          # creates ./navidrome-importer
+make test           # runs the tests
+make dist           # cross-compiles every platform into dist/ + SHA256SUMS
 ```
 
 ---
 
-## Primo avvio
+## First run
 
 ```sh
 ./navidrome-importer "Italian Beat.csv"
 ```
 
-Al primo avvio il programma chiede:
+On first launch the program asks for:
 
 ```
-URL del server (es. http://192.168.1.10:4533):
+Server URL (e.g. http://192.168.1.10:4533):
 Username:
 Password:
 ```
 
-e salva i dati in un file di testo con permessi `600`:
+and saves the values in a plain-text file with `600` permissions:
 
-| Sistema | Percorso |
+| System | Path |
 |---|---|
 | macOS | `~/Library/Application Support/navidrome-import/config.conf` |
 | Linux | `~/.config/navidrome-import/config.conf` |
 | Windows | `%AppData%\navidrome-import\config.conf` |
 
-Il file è modificabile con un normale editor di testo:
+The file can be edited with any text editor:
 
 ```ini
-# Configurazione navidrome-importer
+# navidrome-import configuration
 url = http://192.168.1.10:4533
 user = mario
-password = la-mia-password
+password = my-password
 ```
 
-Per rifare la configurazione: `./navidrome-importer --setup`.
-Per usare un altro file: `./navidrome-importer --config /percorso/config.conf "playlist.csv"`.
+To run the setup again: `./navidrome-importer --setup`.
+To use a different file: `./navidrome-importer --config /path/to/config.conf "playlist.csv"`.
 
-Le credenziali possono anche essere passate con le variabili d'ambiente
-`NAVIDROME_URL`, `NAVIDROME_USER`, `NAVIDROME_PASSWORD` (hanno la precedenza sul file).
-Il percorso del file di configurazione può essere impostato con `NAVIDROME_IMPORT_CONFIG`.
+Credentials can also be provided through the environment variables `NAVIDROME_URL`,
+`NAVIDROME_USER` and `NAVIDROME_PASSWORD` (they take precedence over the file).
+The configuration file path can be set with `NAVIDROME_IMPORT_CONFIG`.
 
-> L'URL può essere scritto con o senza `http://`. Se Navidrome è raggiungibile in HTTPS, usa
+> The URL can be written with or without `http://`. If Navidrome is reachable over HTTPS, use
 > `https://...`.
 
 ---
 
-## Formato del CSV
+## CSV format
 
-Il file deve contenere almeno i titoli dei brani e gli artisti; l'album è consigliato ma
-facoltativo.
+The file must contain at least track titles and artists; the album is recommended but optional.
 
 ```csv
 Track name;Artist name;Album
@@ -102,97 +100,99 @@ Sei bellissima;Loredana Bertè;Sei bellissima
 Piazza Grande;Lucio Dalla;Il meglio della musica italiana anni '70
 ```
 
-- Il separatore (`;`, `,`, TAB, `|`) viene rilevato automaticamente.
-- Le intestazioni riconosciute includono `Track name`, `Title`, `Brano`, `Artist name`,
-  `Artist`, `Artista`, `Album`.
-- Se il file non ha intestazione, usa `--no-header`.
-- È consigliata la codifica UTF-8 (con o senza BOM).
-- Le righe identiche vengono considerate una sola volta.
+- The delimiter (`;`, `,`, TAB, `|`) is detected automatically.
+- Recognized headers include `Track name`, `Title`, `Song`, `Brano`, `Artist name`, `Artist`,
+  `Artista`, `Album`.
+- If the file has no header, use `--no-header`.
+- UTF-8 encoding is recommended (with or without BOM).
+- Identical rows are imported only once.
 
 ---
 
-## Come funziona l'abbinamento
+## How matching works
 
-Ogni riga passa attraverso tre livelli:
+Every row goes through three levels:
 
-1. **Esatto** — titolo e artista coincidono (ignorando accenti, maiuscole e punteggiatura).
-   L'abbinamento è automatico.
-2. **Automatico** — titolo molto simile e artista compatibile, con album o tag coerenti
-   (live, remaster, feat., ecc.). L'abbinamento è automatico.
-3. **Da decidere** — ci sono più candidati plausibili, oppure nessuno. Il programma ti mostra
-   le opzioni e scegli tu.
+1. **Exact** — title and artist match (ignoring accents, case and punctuation). The match is
+   applied automatically.
+2. **Automatic** — the title is very close and the artist is compatible, with coherent album or
+   tags (live, remaster, feat., and so on). The match is applied automatically.
+3. **Needs a decision** — there are several plausible candidates, or none. The program shows the
+   options and you choose.
 
-I casi dubbi vengono mostrati così:
+Ambiguous cases are displayed like this:
 
 ```
-[1/100] «Piazza Grande» — Lucio Dalla [ Il meglio della musica italiana anni '70 ]  → da decidere
+[1/100] «Piazza Grande» — Lucio Dalla [ Il meglio della musica italiana anni '70 ]  → needs a decision
   1) Piazza grande — Dalla - De Gregori [ Banana Republic ]
   2) Piazza Grande): Piazza Grande — Lucio Dalla [ Gli anni settanta - CD1 ]  (0.84)
-  s = salta   c <testo> = cerca   i <id> = inserisci ID   q = esci
-Scelta [1]:
+  s = skip   c <text> = search   i <id> = enter ID   q = quit
+Choice [1]:
 ```
 
-Cosa puoi digitare:
+What you can type:
 
-| Comando | Significato |
+| Command | Meaning |
 |---|---|
-| `1`, `2`, ... | scegli il candidato corrispondente |
-| Invio | scegli il primo candidato (o salta, se non ce ne sono) |
-| `s` | salta questo brano |
-| `c <testo>` | cerca un altro testo nella libreria Navidrome |
-| `i <id>` | inserisci direttamente l'ID Subsonic di un brano |
-| `q` | interrompi senza modificare nulla |
+| `1`, `2`, ... | choose the corresponding candidate |
+| Enter | choose the first candidate (or skip, if there are none) |
+| `s` | skip this track |
+| `c <text>` or `search <text>` | search for another text in the Navidrome library |
+| `i <id>` | enter the Subsonic ID of a track directly |
+| `q` | stop without changing anything |
 
-### Doppioni
+### Duplicates
 
-Se lo stesso titolo + artista compare più volte nel CSV su **album diversi**, il programma chiede
-ogni volta quale versione tenere:
+If the same title + artist appears more than once in the CSV on **different albums**, the program
+asks every time which version to keep:
 
 ```
-Doppione: «La Primavera» — Manu Chao
+Duplicate: «La Primavera» — Manu Chao
   1) La Primavera — Manu Chao [ Baionarena ]
+     already in the playlist (CSV row: «La Primavera» — Manu Chao [ Baionarena ])
   2) La Primavera — Manu CHAO [ Próxima Estación... Esperanza ]
-  Scelta: 1 = tieni 1, 2 = tieni 2, t = tieni entrambi, s = salta entrambi, q = esci
+     new (CSV row: «La Primavera» — Manu Chao [ Próxima Estación... Esperanza ])
+  Choice: 1 = keep 1, 2 = keep 2, t = keep both, s = skip both, q = quit
 ```
 
-### Playlist già esistente
+### Existing playlist
 
-Se esiste già una playlist con lo stesso nome:
+If a playlist with the same name already exists:
 
 ```
-a = aggiorna (sostituisce i brani)
-d = duplica (crea una nuova playlist «nome (2)»)
-r = rinomina la nuova playlist
-q = esci senza modificare
+a = update (replaces the tracks)
+d = duplicate (creates a new playlist «name (2)»)
+r = rename the new playlist
+q = quit without changes
 ```
 
-Il nome predefinito della playlist è il nome del file CSV senza estensione; si può cambiare con
+The default playlist name is the CSV file name without its extension; it can be changed with
 `--name`.
 
 ---
 
-## Opzioni
+## Options
 
 ```
-navidrome-importer [opzioni] <file.csv>
+navidrome-importer [options] <file.csv>
 ```
 
-| Opzione | Descrizione |
+| Option | Description |
 |---|---|
-| `--name <nome>` | nome della playlist (default: nome del file CSV) |
-| `--config <file>` | file di configurazione alternativo |
-| `--setup` | esegue la configurazione guidata e termina |
-| `--csv <file>` | file CSV (alternativa al primo argomento) |
-| `--delimiter <car>` | forza il separatore CSV (es. `--delimiter ";"` o `--delimiter "\t"`) |
-| `--no-header` | il CSV non ha riga di intestazione |
-| `--refresh` | riscarica la libreria ignorando la cache |
-| `--dry-run` | mostra cosa verrebbe fatto, senza creare/modificare la playlist |
-| `--yes` | non interattivo: usa le scelte automatiche (vedi sotto) |
-| `--report-dir <dir>` | cartella dei report (default: quella del CSV) |
-| `--version` | mostra la versione |
-| `-h`, `--help` | mostra l'aiuto |
+| `--name <name>` | playlist name (default: CSV file name) |
+| `--config <file>` | alternative configuration file |
+| `--setup` | run the guided setup and exit |
+| `--csv <file>` | CSV file (alternative to the positional argument) |
+| `--delimiter <char>` | force the CSV delimiter (e.g. `--delimiter ";"` or `--delimiter "\t"`) |
+| `--no-header` | the CSV has no header row |
+| `--refresh` | download the library again, ignoring the cache |
+| `--dry-run` | show what would be done without creating/updating the playlist |
+| `--yes` | non-interactive: use automatic choices (see below) |
+| `--report-dir <dir>` | report directory (default: the CSV directory) |
+| `--version` | print the version |
+| `-h`, `--help` | show the help |
 
-Esempi:
+Examples:
 
 ```sh
 ./navidrome-importer "Metal.csv"
@@ -201,103 +201,101 @@ Esempi:
 ./navidrome-importer --report-dir ~/Desktop "Estate.csv"
 ```
 
-### Modalità `--yes`
+### `--yes` mode
 
-Serve per script e automazioni. Non fa domande e applica queste regole:
+For scripts and automation. It asks no questions and applies these rules:
 
-- casi dubbi → viene scelto il candidato con il punteggio più alto;
-- doppioni → viene tenuta la prima versione incontrata;
-- playlist già esistente → viene **aggiornata** (i brani precedenti vengono sostituiti).
+- ambiguous cases → the candidate with the highest score is chosen;
+- duplicates → the first version encountered is kept;
+- existing playlist → it is **updated** (previous tracks are replaced).
 
-Tutte le scelte vengono comunque riportate nei report. Con `--yes` non serve un terminale
-interattivo.
+All choices are still recorded in the reports. `--yes` does not require an interactive terminal.
 
 ---
 
-## Report
+## Reports
 
-Accanto al CSV (o nella cartella indicata con `--report-dir`) vengono creati:
+Next to the CSV (or in the directory given with `--report-dir`) the program creates:
 
-- `Playlist <Nome> - abbinamenti.csv` — una riga per ogni riga del CSV, con lo stato e i dati del
-  brano trovato in Navidrome;
-- `Playlist <Nome> - non trovati.csv` — solo i brani non abbinati o saltati.
+- `Playlist <Name> - matches.csv` — one row for every CSV row, with the status and the matching
+  Navidrome track;
+- `Playlist <Name> - not found.csv` — only tracks that were not matched or were skipped.
 
-I file usano separatore `;`, BOM UTF-8 e fine riga CRLF, così Excel li apre correttamente.
+The files use `;` as separator, a UTF-8 BOM and CRLF line endings, so Excel opens them correctly.
 
-Con `--dry-run` i nomi diventano `Playlist <Nome> - anteprima - ...` per non sovrascrivere i
-report di un'importazione reale.
+With `--dry-run` the names become `Playlist <Name> - preview - ...` to avoid overwriting the
+reports of a real import.
 
-### Stati
+### Statuses
 
-| Stato | Significato |
+| Status | Meaning |
 |---|---|
-| `ESATTO` | titolo e artista coincidono |
-| `AUTOMATICO` | abbinamento automatico con alta confidenza |
-| `AMBIGUO (prima scelta)` | scelta automatica del primo candidato (solo `--yes`) |
-| `SCELTO DA TE` | scelta manuale (candidato, ricerca o ID) |
-| `NON TROVATO` | nessun candidato |
-| `SALTATO (tua scelta)` | saltato durante la revisione |
-| `DUPLICATO` | stesso brano già presente nella playlist |
-| `SCARTATO (doppione)` | versione scartata di un doppione |
+| `EXACT` | title and artist match |
+| `AUTOMATIC` | automatic match with high confidence |
+| `AMBIGUOUS (first choice)` | automatic choice of the first candidate (only with `--yes`) |
+| `MANUAL CHOICE` | manual choice (candidate, search or ID) |
+| `NOT FOUND` | no candidate |
+| `SKIPPED (your choice)` | skipped during review |
+| `DUPLICATE` | the same track is already in the playlist |
+| `DISCARDED (duplicate)` | version discarded as a duplicate |
 
 ---
 
-## Cache della libreria
+## Library cache
 
-Scaricare l'intera libreria può richiedere qualche minuto la prima volta. I dati vengono salvati
-in cache per **12 ore**:
+Downloading the whole library can take a few minutes the first time. The data is cached for
+**12 hours**:
 
-| Sistema | Percorso |
+| System | Path |
 |---|---|
 | macOS | `~/Library/Caches/navidrome-import/` |
 | Linux | `~/.cache/navidrome-import/` |
 | Windows | `%LocalAppData%\navidrome-import\` |
 
-La cache è legata a URL + utente. Usa `--refresh` per forzare il download.
+The cache is tied to URL + user. Use `--refresh` to force a new download.
 
 ---
 
-## Risoluzione problemi
+## Troubleshooting
 
-### `no route to host` su macOS
+### `no route to host` on macOS
 
-Da macOS 15 in poi il sistema chiede il permesso di accedere alla **rete locale**. Se il binario
-non è autorizzato, le connessioni verso il server falliscono con `no route to host` mentre
-`curl` continua a funzionare.
+Since macOS 15, the system asks for permission to access the **local network**. If the binary is
+not authorized, connections to the server fail with `no route to host` while `curl` keeps working.
 
-Vai in **Impostazioni di Sistema → Privacy e Sicurezza → Rete locale** e abilita il terminale
-da cui lanci il programma (Terminal, iTerm, ecc.). Se il binario non compare, avvialo dal
-terminale e accetta il messaggio di autorizzazione quando appare.
+Open **System Settings → Privacy & Security → Local Network** and enable the terminal you launch
+the program from (Terminal, iTerm, etc.). If the binary does not appear there, start it from the
+terminal and accept the authorization prompt when it shows up.
 
 ### `401` / `Wrong username or password`
 
-Controlla `user` e `password` nel file di configurazione. La password è quella dell'account
-Navidrome (non il token API).
+Check `user` and `password` in the configuration file. The password is the Navidrome account
+password (not an API token).
 
-### La libreria sembra vecchia
+### The library looks stale
 
-Esegui con `--refresh` oppure elimina il file di cache.
+Run with `--refresh` or delete the cache file.
 
-### Un brano c'è ma non viene trovato
+### A track exists but is not found
 
-Nel prompt digita `c <parte del titolo>` e scegli il risultato, oppure `i <ID>` usando l'ID
-Subsonic del brano (visibile nell'interfaccia web di Navidrome nella pagina del brano).
-
----
-
-## Note tecniche
-
-- Autenticazione Subsonic con token: `t = md5(password + salt)`. La password non viene mai
-  trasmessa in chiaro, ma se il server è raggiunto in HTTP il traffico non è cifrato: in quel caso
-  usa solo reti fidate o configura HTTPS.
-- La ricerca dei candidati usa un indice invertito sui token di titolo e artista, la similarità
-  `SequenceMatcher` di Python (reimplementata) e una serie di normalizzazioni (accenti, parentesi,
-  `feat.`, `pt.` → `part`, prefissi album/artista, tag live/reprise/dub/remix/...).
-- Le richieste molto lunghe (playlist con molti brani) vengono inviate in POST.
-- Il file di configurazione viene creato con permessi `600`.
+At the prompt type `c <part of the title>` and choose the result, or `i <ID>` using the track's
+Subsonic ID (visible in the Navidrome web interface on the track page).
 
 ---
 
-## Licenza
+## Technical notes
 
-MIT — vedi [LICENSE](LICENSE).
+- Subsonic token authentication: `t = md5(password + salt)`. The password is never sent in
+  plaintext, but if the server is reached over HTTP the traffic is not encrypted: only use trusted
+  networks or configure HTTPS.
+- Candidate search uses an inverted index over title and artist tokens, Python's `SequenceMatcher`
+  similarity (reimplemented) and a set of normalizations (accents, brackets, `feat.`, `pt.` →
+  `part`, album/artist prefixes, live/reprise/dub/remix/... tags).
+- Very long requests (playlists with many tracks) are sent with POST.
+- The configuration file is created with `600` permissions.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).

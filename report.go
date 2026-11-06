@@ -8,7 +8,20 @@ import (
 	"strings"
 )
 
-// Entry è l'esito finale di una riga del CSV.
+// Status values shown to the user in the terminal and in the CSV reports.
+const (
+	StatusExact          = "EXACT"
+	StatusAutomatic      = "AUTOMATIC"
+	StatusManual         = "MANUAL CHOICE"
+	StatusAmbiguousFirst = "AMBIGUOUS (first choice)"
+	StatusAmbiguousSkip  = "AMBIGUOUS (skipped)"
+	StatusNotFound       = "NOT FOUND"
+	StatusSkipped        = "SKIPPED (your choice)"
+	StatusDuplicate      = "DUPLICATE"
+	StatusDiscarded      = "DISCARDED (duplicate)"
+)
+
+// Entry is the final outcome for one CSV row.
 type Entry struct {
 	Row    Row
 	Song   *Song
@@ -16,8 +29,8 @@ type Entry struct {
 }
 
 var reportHeader = []string{
-	"Brano CSV", "Artista CSV", "Album CSV", "Stato",
-	"Brano Navidrome", "Artista Navidrome", "Album Navidrome",
+	"CSV Track", "CSV Artist", "CSV Album", "Status",
+	"Navidrome Track", "Navidrome Artist", "Navidrome Album",
 }
 
 func sanitizeName(s string) string {
@@ -31,8 +44,8 @@ func sanitizeName(s string) string {
 	return s
 }
 
-// writeReports scrive i due CSV (abbinamenti e non trovati) con separatore ';'
-// e BOM UTF-8, così Excel li apre correttamente.
+// writeReports writes the two CSV files (matches and not found) using ';' as
+// separator and a UTF-8 BOM, so Excel opens them correctly.
 func writeReports(dir, playlistName string, entries []Entry, preview bool) (string, string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", "", err
@@ -40,10 +53,10 @@ func writeReports(dir, playlistName string, entries []Entry, preview bool) (stri
 	name := sanitizeName(playlistName)
 	base := filepath.Join(dir, "Playlist "+name)
 	if preview {
-		base += " - anteprima"
+		base += " - preview"
 	}
-	allPath := base + " - abbinamenti.csv"
-	missPath := base + " - non trovati.csv"
+	allPath := base + " - matches.csv"
+	missPath := base + " - not found.csv"
 
 	write := func(path string, header []string, rows [][]string) error {
 		f, err := os.Create(path)
@@ -85,16 +98,16 @@ func writeReports(dir, playlistName string, entries []Entry, preview bool) (stri
 		all = append(all, row)
 
 		switch e.Status {
-		case "NON TROVATO", "SALTATO (tua scelta)", "AMBIGUO (saltato)":
+		case StatusNotFound, StatusSkipped, StatusAmbiguousSkip:
 			missing = append(missing, []string{e.Row.Track, e.Row.Artist, e.Row.Album})
 		}
 	}
 
 	if err := write(allPath, reportHeader, all); err != nil {
-		return "", "", fmt.Errorf("scrittura %s: %w", allPath, err)
+		return "", "", fmt.Errorf("writing %s: %w", allPath, err)
 	}
-	if err := write(missPath, []string{"Brano", "Artista", "Album"}, missing); err != nil {
-		return "", "", fmt.Errorf("scrittura %s: %w", missPath, err)
+	if err := write(missPath, []string{"Track", "Artist", "Album"}, missing); err != nil {
+		return "", "", fmt.Errorf("writing %s: %w", missPath, err)
 	}
 	return allPath, missPath, nil
 }

@@ -11,7 +11,7 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// Normalizzazione e varianti (porting 1:1 di mlib.py)
+// Normalization and variants (1:1 port of the original Python pipeline)
 // ---------------------------------------------------------------------------
 
 var (
@@ -40,11 +40,11 @@ var tagRegexps = func() map[string]*regexp.Regexp {
 	return m
 }()
 
-// normalize riproduce:
+// normalize reproduces:
 //
-//	NFKD -> rimozione segni diacritici -> minuscole -> & = " and "
-//	-> rimozione apostrofi -> tutto ciò che non è [a-z0-9] diventa spazio
-//	-> spazi compattati.
+//	NFKD -> strip diacritics -> lowercase -> & = " and "
+//	-> remove apostrophes -> everything outside [a-z0-9] becomes a space
+//	-> collapse spaces.
 func normalize(s string) string {
 	if s == "" {
 		return ""
@@ -80,7 +80,7 @@ func romanNumbers(x string) string {
 	})
 }
 
-// variants genera l'insieme di forme alternative del titolo, come in mlib.py.
+// variants builds the set of alternative title forms.
 func variants(raw, album, artist string) []string {
 	clean := func(x string) string { return strings.TrimSpace(reBrackets.ReplaceAllString(x, "")) }
 
@@ -97,7 +97,7 @@ func variants(raw, album, artist string) []string {
 	add(strings.TrimSpace(reTribute.ReplaceAllString(raw, "")))
 	add(rePt.ReplaceAllString(raw, "part "))
 
-	// Prefisso "<album> - " o "<artista> - " (es. "Album - Titolo").
+	// "<album> - " or "<artist> - " prefix (e.g. "Album - Title").
 	if m := rePrefixSep.FindStringSubmatch(raw); m != nil {
 		pre := normalize(m[1])
 		if pre != "" {
@@ -159,10 +159,10 @@ func sameSet(a, b map[string]bool) bool {
 }
 
 // ---------------------------------------------------------------------------
-// Somiglianza: SequenceMatcher.ratio equivalente a difflib di Python
+// Similarity: SequenceMatcher.ratio, equivalent to Python difflib
 // ---------------------------------------------------------------------------
 
-// ratio calcola 2*M/T dove M è il numero di caratteri nei blocchi comuni.
+// ratio computes 2*M/T, where M is the number of characters in matching blocks.
 func ratio(a, b string) float64 {
 	ar := []rune(a)
 	br := []rune(b)
@@ -231,7 +231,7 @@ func longestMatch(a, b []rune, alo, ahi, blo, bhi int) (besti, bestj, bestsize i
 	return
 }
 
-// tokenSet restituisce i token unici di s (come set.split() di Python).
+// tokenSet returns the unique tokens of s (like Python set.split()).
 func tokenSet(s string) []string {
 	f := strings.Fields(s)
 	out := f[:0]
@@ -279,7 +279,7 @@ func sliceIntersection(a, b []string) int {
 	return n
 }
 
-// sim è la funzione di similarità di mlib.py.
+// sim is the similarity function from the original Python pipeline.
 func sim(a, b string) float64 {
 	if a == "" || b == "" {
 		return 0
@@ -328,7 +328,7 @@ func tvsim(a, b []string) float64 {
 // Matcher
 // ---------------------------------------------------------------------------
 
-// Candidate è un possibile abbinamento per una riga del CSV.
+// Candidate is a possible match for a CSV row.
 type Candidate struct {
 	Index int
 	Score float64
@@ -338,15 +338,15 @@ type Candidate struct {
 	FS    float64
 }
 
-// MatchResult è l'esito del matching per una riga.
+// MatchResult is the matching outcome for one row.
 type MatchResult struct {
 	Row   Row
 	Class string // exact | auto | ambiguous | none
-	Pick  int    // indice in Songs, -1 se nessuno
+	Pick  int    // index in Songs, -1 if none
 	Cands []Candidate
 }
 
-// Matcher indicizza la libreria per il matching fuzzy.
+// Matcher indexes the library for fuzzy matching.
 type Matcher struct {
 	Songs []Song
 	index map[string]map[int]struct{}
@@ -465,7 +465,7 @@ func (m *Matcher) cands(t, a, al string) []Candidate {
 		if out[i].FS != out[j].FS {
 			return out[i].FS > out[j].FS
 		}
-		// Tie-break deterministico: a parità di punteggio vince l'indice più basso.
+		// Deterministic tie-break: on equal scores the lowest index wins.
 		return out[i].Index < out[j].Index
 	})
 	if len(out) > 12 {
@@ -474,7 +474,7 @@ func (m *Matcher) cands(t, a, al string) []Candidate {
 	return out
 }
 
-// Match esegue il matching di tutte le righe.
+// Match runs the matching for every row.
 func (m *Matcher) Match(rows []Row) []MatchResult {
 	res := make([]MatchResult, 0, len(rows))
 	for _, row := range rows {

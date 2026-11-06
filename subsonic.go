@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// Song è un brano della libreria Navidrome.
+// Song is a track in the Navidrome library.
 type Song struct {
 	ID       string `json:"id"`
 	Title    string `json:"title"`
@@ -22,7 +22,7 @@ type Song struct {
 	Album    string `json:"album"`
 	Duration int    `json:"duration,omitempty"`
 
-	// campi interni calcolati in memoria (non serializzati)
+	// internal fields computed in memory (not serialized)
 	T   string          `json:"-"`
 	A   string          `json:"-"`
 	AL  string          `json:"-"`
@@ -78,7 +78,7 @@ type apiResponse struct {
 	} `json:"searchResult3"`
 }
 
-// Client è un client minimale dell'API Subsonic di Navidrome.
+// Client is a minimal client for the Navidrome Subsonic API.
 type Client struct {
 	Base string
 	User string
@@ -89,7 +89,7 @@ type Client struct {
 func NewClient(rawURL, user, pass string) (*Client, error) {
 	base := strings.TrimSpace(rawURL)
 	if base == "" {
-		return nil, errors.New("URL del server vuoto")
+		return nil, errors.New("server URL is empty")
 	}
 	if !strings.HasPrefix(base, "http://") && !strings.HasPrefix(base, "https://") {
 		base = "http://" + base
@@ -137,14 +137,14 @@ func (c *Client) call(method string, params url.Values) (*apiResponse, error) {
 		resp *http.Response
 		err  error
 	)
-	// Se la richiesta è lunga (playlist con molti brani) usiamo POST.
+	// Use POST when the request is long (playlists with many tracks).
 	if len(q.Encode()) > 1800 {
 		resp, err = c.HTTP.PostForm(endpoint, q)
 	} else {
 		resp, err = c.HTTP.Get(endpoint + "?" + q.Encode())
 	}
 	if err != nil {
-		return nil, fmt.Errorf("connessione a %s: %w", c.Base, err)
+		return nil, fmt.Errorf("connecting to %s: %w", c.Base, err)
 	}
 	defer resp.Body.Close()
 
@@ -153,23 +153,23 @@ func (c *Client) call(method string, params url.Values) (*apiResponse, error) {
 		return nil, err
 	}
 	if resp.StatusCode >= 400 && len(body) == 0 {
-		return nil, fmt.Errorf("HTTP %d da %s", resp.StatusCode, method)
+		return nil, fmt.Errorf("HTTP %d from %s", resp.StatusCode, method)
 	}
 
 	var wrapper struct {
 		Response *apiResponse `json:"subsonic-response"`
 	}
 	if err := json.Unmarshal(body, &wrapper); err != nil {
-		return nil, fmt.Errorf("risposta non valida da %s: %w", method, err)
+		return nil, fmt.Errorf("invalid response from %s: %w", method, err)
 	}
 	if wrapper.Response == nil {
-		return nil, fmt.Errorf("risposta vuota da %s", method)
+		return nil, fmt.Errorf("empty response from %s", method)
 	}
 	if wrapper.Response.Status != "ok" {
 		if wrapper.Response.Error != nil {
-			return nil, fmt.Errorf("%s: %s (codice %d)", method, wrapper.Response.Error.Message, wrapper.Response.Error.Code)
+			return nil, fmt.Errorf("%s: %s (code %d)", method, wrapper.Response.Error.Message, wrapper.Response.Error.Code)
 		}
-		return nil, fmt.Errorf("%s: risposta %q", method, wrapper.Response.Status)
+		return nil, fmt.Errorf("%s: response %q", method, wrapper.Response.Status)
 	}
 	return wrapper.Response, nil
 }
@@ -241,7 +241,7 @@ func (c *Client) GetSong(id string) (*Song, error) {
 		return nil, err
 	}
 	if r.Song == nil {
-		return nil, fmt.Errorf("brano %q non trovato", id)
+		return nil, fmt.Errorf("track %q not found", id)
 	}
 	return r.Song, nil
 }

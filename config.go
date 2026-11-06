@@ -10,7 +10,7 @@ import (
 	"golang.org/x/term"
 )
 
-// Config contiene i parametri di connessione a Navidrome.
+// Config holds the connection parameters for Navidrome.
 type Config struct {
 	URL      string
 	User     string
@@ -29,8 +29,8 @@ func defaultConfigPath() string {
 	return filepath.Join(dir, "navidrome-import", "config.conf")
 }
 
-// loadConfig legge un file di testo con righe chiave=valore.
-// Sono ignorate le righe vuote e quelle che iniziano con # o ;.
+// loadConfig reads a plain-text key=value file. Empty lines and lines starting
+// with # or ; are ignored.
 func loadConfig(path string) (*Config, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -69,9 +69,9 @@ func saveConfig(path string, c *Config) error {
 		return err
 	}
 	var b strings.Builder
-	b.WriteString("# Configurazione navidrome-import\n")
-	b.WriteString("# Modifica questo file per cambiare server o credenziali.\n")
-	b.WriteString("# Le righe che iniziano con # sono commenti.\n\n")
+	b.WriteString("# navidrome-import configuration\n")
+	b.WriteString("# Edit this file to change the server or the credentials.\n")
+	b.WriteString("# Lines starting with # are comments.\n\n")
 	fmt.Fprintf(&b, "url = %s\n", c.URL)
 	fmt.Fprintf(&b, "user = %s\n", c.User)
 	fmt.Fprintf(&b, "password = %s\n", c.Password)
@@ -81,22 +81,22 @@ func saveConfig(path string, c *Config) error {
 	return os.Chmod(path, 0o600)
 }
 
-// setupConfig chiede i dati all'utente e li salva su disco.
+// setupConfig asks the user for the connection details and saves them to disk.
 func setupConfig(path string) (*Config, error) {
 	in := bufio.NewReader(os.Stdin)
 
 	fmt.Println()
-	fmt.Println("Configurazione Navidrome")
-	fmt.Println("------------------------")
-	fmt.Printf("File di configurazione: %s\n\n", path)
+	fmt.Println("Navidrome setup")
+	fmt.Println("---------------")
+	fmt.Printf("Configuration file: %s\n\n", path)
 
-	url := askLine(in, "URL del server (es. http://192.168.1.10:4533)", "")
+	url := askLine(in, "Server URL (e.g. http://192.168.1.10:4533)", "")
 	if url == "" {
-		return nil, fmt.Errorf("URL obbligatorio")
+		return nil, fmt.Errorf("URL is required")
 	}
 	user := askLine(in, "Username", "")
 	if user == "" {
-		return nil, fmt.Errorf("username obbligatorio")
+		return nil, fmt.Errorf("username is required")
 	}
 
 	fmt.Print("Password: ")
@@ -113,14 +113,14 @@ func setupConfig(path string) (*Config, error) {
 		pwd = strings.TrimRight(line, "\r\n")
 	}
 	if pwd == "" {
-		return nil, fmt.Errorf("password obbligatoria")
+		return nil, fmt.Errorf("password is required")
 	}
 
 	c := &Config{URL: url, User: user, Password: pwd}
 	if err := saveConfig(path, c); err != nil {
-		fmt.Fprintf(os.Stderr, "Attenzione: impossibile salvare la configurazione: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Warning: cannot save the configuration: %v\n", err)
 	} else {
-		fmt.Printf("Configurazione salvata in %s (permessi 600)\n", path)
+		fmt.Printf("Configuration saved to %s (permissions 600)\n", path)
 	}
 	return c, nil
 }

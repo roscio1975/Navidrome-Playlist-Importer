@@ -58,27 +58,27 @@ func saveLibraryCache(path string, songs []Song) error {
 	return os.WriteFile(path, b, 0o600)
 }
 
-// fetchLibrary scarica l'intera libreria (artisti -> album -> brani).
+// fetchLibrary downloads the whole library (artists -> albums -> tracks).
 func fetchLibrary(c *Client) ([]Song, error) {
 	artists, err := c.GetArtists()
 	if err != nil {
 		return nil, err
 	}
 	if len(artists) == 0 {
-		return nil, fmt.Errorf("nessun artista trovato nella libreria")
+		return nil, fmt.Errorf("no artists found in the library")
 	}
-	statusf("Trovati %d artisti, recupero gli album...", len(artists))
+	statusf("Found %d artists, fetching albums...", len(artists))
 
 	albums := make([][]albumRef, len(artists))
 	err = runParallel(len(artists), 8, func(i int) error {
 		al, err := c.GetArtist(artists[i].ID)
 		if err != nil {
-			return fmt.Errorf("artista %q: %w", artists[i].Name, err)
+			return fmt.Errorf("artist %q: %w", artists[i].Name, err)
 		}
 		albums[i] = al
 		return nil
 	}, func(done int) {
-		statusf("Album: %d/%d artisti", done, len(artists))
+		statusf("Albums: %d/%d artists", done, len(artists))
 	})
 	if err != nil {
 		return nil, err
@@ -88,7 +88,7 @@ func fetchLibrary(c *Client) ([]Song, error) {
 	for _, al := range albums {
 		all = append(all, al...)
 	}
-	statusf("Trovati %d album, recupero i brani...", len(all))
+	statusf("Found %d albums, fetching tracks...", len(all))
 
 	songLists := make([][]Song, len(all))
 	err = runParallel(len(all), 8, func(i int) error {
@@ -99,7 +99,7 @@ func fetchLibrary(c *Client) ([]Song, error) {
 		songLists[i] = ss
 		return nil
 	}, func(done int) {
-		statusf("Brani: %d/%d album", done, len(all))
+		statusf("Tracks: %d/%d albums", done, len(all))
 	})
 	if err != nil {
 		return nil, err
@@ -116,7 +116,7 @@ func fetchLibrary(c *Client) ([]Song, error) {
 		}
 	}
 	if len(songs) == 0 {
-		return nil, fmt.Errorf("nessun brano trovato nella libreria")
+		return nil, fmt.Errorf("no tracks found in the library")
 	}
 	return songs, nil
 }
@@ -159,8 +159,8 @@ func runParallel(total, workers int, fn func(i int) error, tick func(done int)) 
 
 var statusMu sync.Mutex
 
-// statusTTY evita di riempire i log con sequenze ANSI quando l'output
-// non è un terminale (es. redirect su file o pipe).
+// statusTTY avoids filling logs with ANSI sequences when the output is not a
+// terminal (for example when redirected to a file or a pipe).
 var statusTTY = term.IsTerminal(int(os.Stderr.Fd()))
 
 func statusf(format string, args ...interface{}) {

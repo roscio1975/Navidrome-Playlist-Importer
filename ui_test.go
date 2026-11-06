@@ -24,49 +24,49 @@ func TestAskSongNumericChoice(t *testing.T) {
 		{Song: Song{ID: "1", Title: "Gianna"}, HasScore: true, Score: 0.9},
 		{Song: Song{ID: "2", Title: "Pazza idea"}, HasScore: true, Score: 0.85},
 	}
-	s, skip, err := ui.AskSong("riga di prova", opts)
+	s, skip, err := ui.AskSong("test row", opts)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if skip || s == nil || s.ID != "2" {
-		t.Fatalf("scelta inattesa: song=%+v skip=%v", s, skip)
+		t.Fatalf("unexpected choice: song=%+v skip=%v", s, skip)
 	}
 	if !strings.Contains(out.String(), "1) Gianna") || !strings.Contains(out.String(), "(0.85)") {
-		t.Errorf("output inatteso:\n%s", out.String())
+		t.Errorf("unexpected output:\n%s", out.String())
 	}
 }
 
 func TestAskSongDefaultAndSkip(t *testing.T) {
 	ui, _ := newTestUI("\n")
-	s, skip, err := ui.AskSong("riga", []Option{{Song: Song{ID: "1", Title: "Gianna"}}})
+	s, skip, err := ui.AskSong("row", []Option{{Song: Song{ID: "1", Title: "Gianna"}}})
 	if err != nil || skip || s == nil || s.ID != "1" {
-		t.Fatalf("invio non sceglie il primo candidato: song=%+v skip=%v err=%v", s, skip, err)
+		t.Fatalf("Enter does not pick the first candidate: song=%+v skip=%v err=%v", s, skip, err)
 	}
 
 	ui, _ = newTestUI("s\n")
-	s, skip, err = ui.AskSong("riga", nil)
+	s, skip, err = ui.AskSong("row", nil)
 	if err != nil || !skip || s != nil {
-		t.Fatalf("s non salta: song=%+v skip=%v err=%v", s, skip, err)
+		t.Fatalf("s does not skip: song=%+v skip=%v err=%v", s, skip, err)
 	}
 
 	ui, _ = newTestUI("q\n")
-	if _, _, err = ui.AskSong("riga", nil); err != errQuit {
-		t.Errorf("q non interrompe: %v", err)
+	if _, _, err = ui.AskSong("row", nil); err != errQuit {
+		t.Errorf("q does not quit: %v", err)
 	}
 }
 
 func TestAskSongInvalidThenValid(t *testing.T) {
 	ui, out := newTestUI("99\nx\n1\n")
-	s, skip, err := ui.AskSong("riga", []Option{{Song: Song{ID: "1", Title: "Gianna"}}})
+	s, skip, err := ui.AskSong("row", []Option{{Song: Song{ID: "1", Title: "Gianna"}}})
 	if err != nil || skip || s == nil || s.ID != "1" {
-		t.Fatalf("scelta inattesa: song=%+v skip=%v err=%v", s, skip, err)
+		t.Fatalf("unexpected choice: song=%+v skip=%v err=%v", s, skip, err)
 	}
-	if strings.Count(out.String(), "Scelta non valida") != 2 {
-		t.Errorf("messaggi di errore mancanti:\n%s", out.String())
+	if strings.Count(out.String(), "Invalid choice") != 2 {
+		t.Errorf("missing error messages:\n%s", out.String())
 	}
 }
 
-func TestAskSongSearchWithCercaPrefix(t *testing.T) {
+func TestAskSongSearchWithPrefix(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !strings.HasSuffix(r.URL.Path, "/search3.view") {
 			http.NotFound(w, r)
@@ -76,15 +76,15 @@ func TestAskSongSearchWithCercaPrefix(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	ui, out := newTestUI("Cerca Gianna\n1\n")
+	ui, out := newTestUI("Search Gianna\n1\n")
 	ui.client = &Client{Base: srv.URL, User: "u", Pass: "p", HTTP: srv.Client()}
 
-	s, skip, err := ui.AskSong("riga", nil)
+	s, skip, err := ui.AskSong("row", nil)
 	if err != nil || skip || s == nil || s.ID != "abc" {
-		t.Fatalf("ricerca fallita: song=%+v skip=%v err=%v", s, skip, err)
+		t.Fatalf("search failed: song=%+v skip=%v err=%v", s, skip, err)
 	}
-	if !strings.Contains(out.String(), "Risultati della ricerca") {
-		t.Errorf("output inatteso:\n%s", out.String())
+	if !strings.Contains(out.String(), "Search results") {
+		t.Errorf("unexpected output:\n%s", out.String())
 	}
 }
 
@@ -105,9 +105,9 @@ func TestAskSongManualID(t *testing.T) {
 	ui, _ := newTestUI("i xyz\n")
 	ui.client = &Client{Base: srv.URL, User: "u", Pass: "p", HTTP: srv.Client()}
 
-	s, skip, err := ui.AskSong("riga", nil)
+	s, skip, err := ui.AskSong("row", nil)
 	if err != nil || skip || s == nil || s.ID != "xyz" {
-		t.Fatalf("ID manuale fallito: song=%+v skip=%v err=%v", s, skip, err)
+		t.Fatalf("manual ID failed: song=%+v skip=%v err=%v", s, skip, err)
 	}
 }
 
@@ -128,13 +128,13 @@ func TestAskDuplicateChoices(t *testing.T) {
 		ui, _ := newTestUI(c.input)
 		got, err := ui.AskDuplicate(first, second)
 		if err != nil || got != c.want {
-			t.Errorf("input %q: scelta=%v err=%v, atteso %v", c.input, got, err, c.want)
+			t.Errorf("input %q: choice=%v err=%v, want %v", c.input, got, err, c.want)
 		}
 	}
 
 	ui, _ := newTestUI("x\nq\n")
 	if _, err := ui.AskDuplicate(first, second); err != errQuit {
-		t.Errorf("q non interrompe: %v", err)
+		t.Errorf("q does not quit: %v", err)
 	}
 }
 
@@ -154,16 +154,16 @@ func TestAskExistingPlaylist(t *testing.T) {
 		ui, out := newTestUI(c.input)
 		action, err := ui.AskExistingPlaylist("Italian Beat", 75)
 		if err != nil || action.Kind != c.kind || action.NewName != c.name {
-			t.Errorf("input %q: azione=%+v err=%v", c.input, action, err)
+			t.Errorf("input %q: action=%+v err=%v", c.input, action, err)
 		}
-		if !strings.Contains(out.String(), "1 brani") && !strings.Contains(out.String(), "75 brani") {
-			t.Errorf("conteggio non mostrato:\n%s", out.String())
+		if !strings.Contains(out.String(), "75 tracks") {
+			t.Errorf("count not shown:\n%s", out.String())
 		}
 	}
 }
 
-func TestBraniPlural(t *testing.T) {
-	if brani(1) != "1 brano" || brani(0) != "0 brani" || brani(75) != "75 brani" {
-		t.Errorf("pluralizzazione errata: %q %q %q", brani(1), brani(0), brani(75))
+func TestTracksPlural(t *testing.T) {
+	if tracks(1) != "1 track" || tracks(0) != "0 tracks" || tracks(75) != "75 tracks" {
+		t.Errorf("wrong pluralization: %q %q %q", tracks(1), tracks(0), tracks(75))
 	}
 }

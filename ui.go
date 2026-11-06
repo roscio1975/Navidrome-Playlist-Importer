@@ -10,16 +10,16 @@ import (
 	"strings"
 )
 
-var errQuit = errors.New("operazione annullata dall'utente")
+var errQuit = errors.New("cancelled by the user")
 
-// Option è una scelta mostrata all'utente.
+// Option is a choice shown to the user.
 type Option struct {
 	Song     Song
 	Score    float64
 	HasScore bool
 }
 
-// UI gestisce l'interazione da terminale.
+// UI handles terminal interaction.
 type UI struct {
 	in     *bufio.Reader
 	out    io.Writer
@@ -82,23 +82,23 @@ func optionsFromCandidates(songs []Song, cands []Candidate) []Option {
 	return opts
 }
 
-// AskSong mostra i candidati e restituisce il brano scelto.
-// skip=true significa che l'utente ha scelto di saltare la riga.
+// AskSong shows the candidates and returns the chosen track.
+// skip=true means the user chose to skip this row.
 func (u *UI) AskSong(header string, opts []Option) (*Song, bool, error) {
 	fmt.Fprintln(u.out)
 	fmt.Fprintln(u.out, header)
 	if len(opts) == 0 {
-		fmt.Fprintln(u.out, "  Nessun candidato trovato in libreria.")
+		fmt.Fprintln(u.out, "  No candidates found in the library.")
 	} else {
 		u.printOptions(opts)
 	}
-	fmt.Fprintln(u.out, "  s = salta   c <testo> = cerca   i <id> = inserisci ID   q = esci")
+	fmt.Fprintln(u.out, "  s = skip   c <text> = search   i <id> = enter ID   q = quit")
 
 	for {
 		if len(opts) > 0 {
-			fmt.Fprintf(u.out, "Scelta [1]: ")
+			fmt.Fprintf(u.out, "Choice [1]: ")
 		} else {
-			fmt.Fprintf(u.out, "Scelta [s]: ")
+			fmt.Fprintf(u.out, "Choice [s]: ")
 		}
 		line, err := u.in.ReadString('\n')
 		if err != nil && line == "" {
@@ -118,22 +118,22 @@ func (u *UI) AskSong(header string, opts []Option) (*Song, bool, error) {
 			}
 			return nil, true, nil
 
-		case low == "s" || low == "salta" || low == "skip":
+		case low == "s" || low == "skip":
 			return nil, true, nil
 
-		case low == "q" || low == "esci" || low == "quit":
+		case low == "q" || low == "quit":
 			return nil, false, errQuit
 
-		case low == "c" || low == "cerca" || strings.HasPrefix(low, "c ") || strings.HasPrefix(low, "cerca "):
+		case low == "c" || low == "search" || strings.HasPrefix(low, "c ") || strings.HasPrefix(low, "search "):
 			var query string
 			switch {
-			case strings.HasPrefix(low, "cerca "):
-				query = strings.TrimSpace(line[len("cerca "):])
+			case strings.HasPrefix(low, "search "):
+				query = strings.TrimSpace(line[len("search "):])
 			case strings.HasPrefix(low, "c "):
 				query = strings.TrimSpace(line[len("c "):])
 			}
 			if query == "" {
-				query, err = u.readLine("Testo da cercare: ")
+				query, err = u.readLine("Search text: ")
 				if err != nil {
 					return nil, false, err
 				}
@@ -143,24 +143,24 @@ func (u *UI) AskSong(header string, opts []Option) (*Song, bool, error) {
 			}
 			found, err := u.client.Search(query)
 			if err != nil {
-				fmt.Fprintf(u.out, "  Errore nella ricerca: %v\n", err)
+				fmt.Fprintf(u.out, "  Search error: %v\n", err)
 				continue
 			}
 			if len(found) == 0 {
-				fmt.Fprintln(u.out, "  Nessun risultato.")
+				fmt.Fprintln(u.out, "  No results.")
 				continue
 			}
 			opts = make([]Option, 0, len(found))
 			for _, s := range found {
 				opts = append(opts, Option{Song: s})
 			}
-			fmt.Fprintln(u.out, "  Risultati della ricerca:")
+			fmt.Fprintln(u.out, "  Search results:")
 			u.printOptions(opts)
 
 		case low == "i" || strings.HasPrefix(low, "i "):
 			id := strings.TrimSpace(line[1:])
 			if id == "" {
-				id, err = u.readLine("ID del brano: ")
+				id, err = u.readLine("Track ID: ")
 				if err != nil {
 					return nil, false, err
 				}
@@ -171,7 +171,7 @@ func (u *UI) AskSong(header string, opts []Option) (*Song, bool, error) {
 			}
 			s, err := u.client.GetSong(id)
 			if err != nil {
-				fmt.Fprintf(u.out, "  ID non valido: %v\n", err)
+				fmt.Fprintf(u.out, "  Invalid ID: %v\n", err)
 				continue
 			}
 			return s, false, nil
@@ -182,12 +182,12 @@ func (u *UI) AskSong(header string, opts []Option) (*Song, bool, error) {
 				s := opts[n-1].Song
 				return &s, false, nil
 			}
-			fmt.Fprintln(u.out, "  Scelta non valida.")
+			fmt.Fprintln(u.out, "  Invalid choice.")
 		}
 	}
 }
 
-// DupChoice è la scelta fatta su un doppione.
+// DupChoice is the choice made for a duplicate track.
 type DupChoice int
 
 const (
@@ -197,19 +197,19 @@ const (
 	SkipBoth
 )
 
-// AskDuplicate chiede quale versione tenere quando lo stesso titolo+artista
-// compare su album diversi.
+// AskDuplicate asks which version to keep when the same title+artist appears
+// on different albums.
 func (u *UI) AskDuplicate(first, second Entry) (DupChoice, error) {
 	fmt.Fprintln(u.out)
-	fmt.Fprintf(u.out, "Doppione: «%s» — %s\n", first.Song.Title, first.Song.Artist)
-	fmt.Fprintf(u.out, "  1) %s\n     già in playlist (riga CSV: «%s» — %s [ %s ])\n",
+	fmt.Fprintf(u.out, "Duplicate: «%s» — %s\n", first.Song.Title, first.Song.Artist)
+	fmt.Fprintf(u.out, "  1) %s\n     already in the playlist (CSV row: «%s» — %s [ %s ])\n",
 		formatSong(first.Song), first.Row.Track, first.Row.Artist, first.Row.Album)
-	fmt.Fprintf(u.out, "  2) %s\n     nuovo (riga CSV: «%s» — %s [ %s ])\n",
+	fmt.Fprintf(u.out, "  2) %s\n     new (CSV row: «%s» — %s [ %s ])\n",
 		formatSong(second.Song), second.Row.Track, second.Row.Artist, second.Row.Album)
-	fmt.Fprintln(u.out, "  Scelta: 1 = tieni 1, 2 = tieni 2, t = tieni entrambi, s = salta entrambi, q = esci")
+	fmt.Fprintln(u.out, "  Choice: 1 = keep 1, 2 = keep 2, t = keep both, s = skip both, q = quit")
 
 	for {
-		line, err := u.readLine("Scelta [1]: ")
+		line, err := u.readLine("Choice [1]: ")
 		if err != nil {
 			return KeepFirst, err
 		}
@@ -218,19 +218,19 @@ func (u *UI) AskDuplicate(first, second Entry) (DupChoice, error) {
 			return KeepFirst, nil
 		case "2":
 			return KeepSecond, nil
-		case "t", "tutti", "entrambi":
+		case "t", "both":
 			return KeepBoth, nil
-		case "s", "salta":
+		case "s", "skip":
 			return SkipBoth, nil
-		case "q", "esci":
+		case "q", "quit":
 			return KeepFirst, errQuit
 		default:
-			fmt.Fprintln(u.out, "  Scelta non valida.")
+			fmt.Fprintln(u.out, "  Invalid choice.")
 		}
 	}
 }
 
-// ExistingAction è l'azione scelta per una playlist già esistente.
+// ExistingAction is the action chosen for an existing playlist.
 type ExistingAction struct {
 	Kind    string // update | duplicate | rename | quit
 	NewName string
@@ -238,36 +238,36 @@ type ExistingAction struct {
 
 func (u *UI) AskExistingPlaylist(name string, count int) (ExistingAction, error) {
 	fmt.Fprintln(u.out)
-	fmt.Fprintf(u.out, "Esiste già una playlist chiamata «%s» (%s).\n", name, brani(count))
-	fmt.Fprintln(u.out, "  a = aggiorna (sostituisce i brani)")
-	fmt.Fprintln(u.out, "  d = duplica (crea una nuova playlist «nome (2)»)")
-	fmt.Fprintln(u.out, "  r = rinomina la nuova playlist")
-	fmt.Fprintln(u.out, "  q = esci senza modificare")
+	fmt.Fprintf(u.out, "A playlist named «%s» already exists (%s).\n", name, tracks(count))
+	fmt.Fprintln(u.out, "  a = update (replaces the tracks)")
+	fmt.Fprintln(u.out, "  d = duplicate (creates a new playlist «name (2)»)")
+	fmt.Fprintln(u.out, "  r = rename the new playlist")
+	fmt.Fprintln(u.out, "  q = quit without changes")
 
 	for {
-		line, err := u.readLine("Scelta [a]: ")
+		line, err := u.readLine("Choice [a]: ")
 		if err != nil {
 			return ExistingAction{}, err
 		}
 		switch strings.ToLower(line) {
-		case "", "a", "aggiorna":
+		case "", "a", "update":
 			return ExistingAction{Kind: "update"}, nil
-		case "d", "duplica":
+		case "d", "duplicate":
 			return ExistingAction{Kind: "duplicate"}, nil
-		case "r", "rinomina":
-			newName, err := u.readLine("Nuovo nome della playlist: ")
+		case "r", "rename":
+			newName, err := u.readLine("New playlist name: ")
 			if err != nil {
 				return ExistingAction{}, err
 			}
 			if strings.TrimSpace(newName) == "" {
-				fmt.Fprintln(u.out, "  Nome non valido.")
+				fmt.Fprintln(u.out, "  Invalid name.")
 				continue
 			}
 			return ExistingAction{Kind: "rename", NewName: strings.TrimSpace(newName)}, nil
-		case "q", "esci":
+		case "q", "quit":
 			return ExistingAction{Kind: "quit"}, nil
 		default:
-			fmt.Fprintln(u.out, "  Scelta non valida.")
+			fmt.Fprintln(u.out, "  Invalid choice.")
 		}
 	}
 }

@@ -23,20 +23,20 @@ func TestLibraryCacheFresh(t *testing.T) {
 
 	got, fetchedAt, ok := loadLibraryCache(path)
 	if !ok {
-		t.Fatal("cache appena salvata non caricata")
+		t.Fatal("freshly saved cache was not loaded")
 	}
 	if len(got) != 1 || got[0].ID != "1" {
-		t.Errorf("brani inattesi: %+v", got)
+		t.Errorf("unexpected tracks: %+v", got)
 	}
 	if time.Since(fetchedAt) > time.Minute {
-		t.Errorf("timestamp inatteso: %v", fetchedAt)
+		t.Errorf("unexpected timestamp: %v", fetchedAt)
 	}
 	info, err := os.Stat(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if perm := info.Mode().Perm(); perm != 0o600 {
-		t.Errorf("permessi cache = %o, attesi 600", perm)
+		t.Errorf("cache permissions = %o, want 600", perm)
 	}
 }
 
@@ -57,7 +57,7 @@ func TestLibraryCacheExpired(t *testing.T) {
 	}
 
 	if _, _, ok := loadLibraryCache(path); ok {
-		t.Error("cache scaduta usata al posto del download")
+		t.Error("expired cache used instead of downloading")
 	}
 }
 
@@ -67,6 +67,6 @@ func TestLibraryCacheCorrupt(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, _, ok := loadLibraryCache(path); ok {
-		t.Error("cache corrotta accettata")
+		t.Error("corrupted cache was accepted")
 	}
 }

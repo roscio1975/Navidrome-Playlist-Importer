@@ -16,7 +16,7 @@ func TestNormalize(t *testing.T) {
 	}
 	for _, c := range cases {
 		if got := normalize(c.in); got != c.want {
-			t.Errorf("normalize(%q) = %q, atteso %q", c.in, got, c.want)
+			t.Errorf("normalize(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }
@@ -33,22 +33,22 @@ func TestVariants(t *testing.T) {
 
 	got := variants("Titolo (Live)", "Album", "Artista")
 	if !has(got, "titolo") || !has(got, "titolo live") {
-		t.Errorf("variants non attese: %v", got)
+		t.Errorf("unexpected variants: %v", got)
 	}
 
 	got = variants("Album - Titolo", "Album", "Artista")
 	if !has(got, "titolo") {
-		t.Errorf("prefisso album non rimosso: %v", got)
+		t.Errorf("album prefix not removed: %v", got)
 	}
 
 	got = variants("Brano pt. 1", "Album", "Artista")
 	if !has(got, "brano part 1") {
-		t.Errorf("pt. non convertito in part: %v", got)
+		t.Errorf("pt. not converted to part: %v", got)
 	}
 
 	got = variants("Brano (feat. Qualcuno)", "Album", "Artista")
 	if !has(got, "brano") {
-		t.Errorf("feat non rimosso: %v", got)
+		t.Errorf("feat not removed: %v", got)
 	}
 }
 
@@ -64,11 +64,11 @@ func TestRatioAndSim(t *testing.T) {
 	}
 	for _, c := range cases {
 		if got := sim(c.a, c.b); math.Abs(got-c.sim) > 1e-5 {
-			t.Errorf("sim(%q, %q) = %.6f, atteso %.6f", c.a, c.b, got, c.sim)
+			t.Errorf("sim(%q, %q) = %.6f, want %.6f", c.a, c.b, got, c.sim)
 		}
 	}
 	if got := sim("a", ""); got != 0 {
-		t.Errorf("sim con stringa vuota = %f, atteso 0", got)
+		t.Errorf("sim with empty string = %f, want 0", got)
 	}
 }
 
@@ -89,12 +89,12 @@ func TestMatcherSynthetic(t *testing.T) {
 	res := m.Match(rows)
 
 	if res[0].Class != "exact" || songs[res[0].Pick].ID != "1" {
-		t.Errorf("riga 0: class=%s pick=%d, attesi exact/1", res[0].Class, res[0].Pick)
+		t.Errorf("row 0: class=%s pick=%d, want exact/1", res[0].Class, res[0].Pick)
 	}
 	if res[1].Class != "exact" || songs[res[1].Pick].ID != "3" {
-		t.Errorf("riga 1: class=%s pick=%d, attesi exact/3", res[1].Class, res[1].Pick)
+		t.Errorf("row 1: class=%s pick=%d, want exact/3", res[1].Class, res[1].Pick)
 	}
 	if res[2].Class != "none" || res[2].Pick != -1 {
-		t.Errorf("riga 2: class=%s pick=%d, attesi none/-1", res[2].Class, res[2].Pick)
+		t.Errorf("row 2: class=%s pick=%d, want none/-1", res[2].Class, res[2].Pick)
 	}
 }

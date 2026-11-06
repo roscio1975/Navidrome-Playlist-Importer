@@ -10,14 +10,14 @@ import (
 	"unicode/utf8"
 )
 
-// Row è una riga del CSV di input.
+// Row is one row of the input CSV.
 type Row struct {
 	Track  string
 	Artist string
 	Album  string
 }
 
-// detectDelimiter sceglie il separatore contando ; , e TAB nella prima riga.
+// detectDelimiter picks the delimiter by counting ; , TAB and | in the first row.
 func detectDelimiter(line string) rune {
 	counts := map[rune]int{';': 0, ',': 0, '\t': 0, '|': 0}
 	inQuotes := false
@@ -91,7 +91,7 @@ func isHeader(rec []string) bool {
 	return track >= 0 && artist >= 0
 }
 
-// readCSV legge il file e restituisce le righe. Restituisce anche il separatore usato.
+// readCSV reads the file and returns its rows, together with the delimiter used.
 func readCSV(path string, delimiter string, forceNoHeader bool) ([]Row, rune, error) {
 	line, err := firstLine(path)
 	if err != nil {
@@ -106,7 +106,7 @@ func readCSV(path string, delimiter string, forceNoHeader bool) ([]Row, rune, er
 		}
 		r, size := utf8.DecodeRuneInString(delimiter)
 		if r == utf8.RuneError || size == 0 {
-			return nil, 0, fmt.Errorf("separatore non valido: %q", delimiter)
+			return nil, 0, fmt.Errorf("invalid delimiter: %q", delimiter)
 		}
 		comma = r
 	} else {
@@ -127,10 +127,10 @@ func readCSV(path string, delimiter string, forceNoHeader bool) ([]Row, rune, er
 
 	records, err := r.ReadAll()
 	if err != nil {
-		return nil, comma, fmt.Errorf("lettura CSV: %w", err)
+		return nil, comma, fmt.Errorf("reading CSV: %w", err)
 	}
 	if len(records) == 0 {
-		return nil, comma, errors.New("file CSV vuoto")
+		return nil, comma, errors.New("CSV file is empty")
 	}
 
 	start := 0
@@ -144,7 +144,7 @@ func readCSV(path string, delimiter string, forceNoHeader bool) ([]Row, rune, er
 		ai = columnIndex(h, "artist name", "artist", "artista", "interprete")
 		li = columnIndex(h, "album", "album name", "disco")
 		if ti < 0 || ai < 0 {
-			return nil, comma, errors.New("intestazione non riconosciuta: servono le colonne Track name e Artist name")
+			return nil, comma, errors.New("unrecognized header: the Track name and Artist name columns are required")
 		}
 		start = 1
 	}
@@ -170,7 +170,7 @@ func readCSV(path string, delimiter string, forceNoHeader bool) ([]Row, rune, er
 		rows = append(rows, row)
 	}
 	if len(rows) == 0 {
-		return nil, comma, errors.New("nessun brano trovato nel CSV")
+		return nil, comma, errors.New("no tracks found in the CSV")
 	}
 	return rows, comma, nil
 }
